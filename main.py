@@ -166,6 +166,117 @@ def process_and_merge_junctions(csv_path, design_parameters):
     
     return merged_junctions
 
+# ---------------// Hairpin analysis //------------------
+# Use primer3 to calculate hairpin
+# max seq length is 60 nucleotides
+# uses the thal library from primer3
+# results stored as ThermoResult object
+
+def calculate_hairpin(sequence, pcr_conditions):
+    """
+    Calculate hairpin thermodynamics for a DNA sequence.
+    
+    Args:
+        sequence (str or Seq): DNA sequence to analyze
+        pcr_conditions (dict): PCR conditions including ion concentrations
+        
+    Returns:
+        ThermoResult: Primer3 thermodynamic analysis result
+    """
+    return primer3.bindings.calc_hairpin(
+        seq=str(sequence),
+        mv_conc=pcr_conditions['mv_concentration'],
+        dv_conc=pcr_conditions['dv_concentration'],
+        dntp_conc=pcr_conditions['dntp_concentration'],
+        dna_conc=pcr_conditions['dna_concentration'],
+        temp_c=37.0,  # Standard temperature for dG calculations
+        max_loop=30,
+        output_structure=False
+    )
+
+def calculate_melting_temperature(sequence, pcr_conditions):
+    """
+    Calculate melting temperature for a DNA sequence.
+    
+    Args:
+        sequence (str or Seq): DNA sequence to analyze
+        pcr_conditions (dict): PCR conditions including concentrations and temperature
+        
+    Returns:
+        float: Melting temperature in Celsius
+    """
+    return primer3.bindings.calc_tm(
+        seq=str(sequence),
+        mv_conc=pcr_conditions['mv_concentration'],
+        dv_conc=pcr_conditions['dv_concentration'],
+        dntp_conc=pcr_conditions['dntp_concentration'],
+        dna_conc=pcr_conditions['dna_concentration'],
+        dmso_conc=pcr_conditions['dmso_concentration'],
+        dmso_fact=pcr_conditions['dmso_fact'],
+        formamide_conc=pcr_conditions['formamide_concentration'],
+        annealing_temp_c=pcr_conditions['annealing_temperature'],
+        max_nn_length=60,
+        tm_method='santalucia',
+        salt_corrections_method='santalucia'
+    )
+
+def calculate_homodimer(sequence, pcr_conditions):
+    """
+    Calculate homodimer formation thermodynamics.
+    
+    Args:
+        sequence (str or Seq): DNA sequence to analyze
+        pcr_conditions (dict): PCR conditions including ion concentrations
+        
+    Returns:
+        ThermoResult: Primer3 thermodynamic analysis result
+    """
+    return primer3.bindings.calc_homodimer(
+        str(sequence),
+        mv_conc=pcr_conditions['mv_concentration'],
+        dv_conc=pcr_conditions['dv_concentration'],
+        dntp_conc=pcr_conditions['dntp_concentration'],
+        dna_conc=pcr_conditions['dna_concentration'],
+        temp_c=37.0,
+        max_loop=30,
+        output_structure=False
+    )
+
+def calculate_heterodimer(sequence1, sequence2, pcr_conditions):
+    """
+    Calculate heterodimer formation thermodynamics between two sequences.
+    
+    Args:
+        sequence1 (str or Seq): First DNA sequence
+        sequence2 (str or Seq): Second DNA sequence
+        pcr_conditions (dict): PCR conditions including ion concentrations
+        
+    Returns:
+        ThermoResult: Primer3 thermodynamic analysis result
+    """
+    return primer3.bindings.calc_heterodimer(
+        str(sequence1),
+        str(sequence2),
+        mv_conc=pcr_conditions['mv_concentration'],
+        dv_conc=pcr_conditions['dv_concentration'],
+        dntp_conc=pcr_conditions['dntp_concentration'],
+        dna_conc=pcr_conditions['dna_concentration'],
+        temp_c=37.0,
+        max_loop=30,
+        output_structure=False
+    )
+
+# Example usage:
+# candidate_sequence = Seq("TTGTGAGTTTTTGAAATCTCTGTGA")
+# hairpin_result = calculate_hairpin(candidate_sequence, pcr_conditions)
+# tm = calculate_melting_temperature(candidate_sequence, pcr_conditions)
+# homodimer_result = calculate_homodimer(candidate_sequence, pcr_conditions)
+# heterodimer_result = calculate_heterodimer(
+#     candidate_sequence, 
+#     candidate_sequence.reverse_complement(), 
+#     pcr_conditions
+# )
+
 #------// Workflow //------
 # 1) Prepare inputs
 # 2) Design single-plex solutions for each target
@@ -184,11 +295,39 @@ protocol    = "simsen"
 
 # Get metadata
 design_parameters = {
-    "min_primer_length": 18,
-    "max_primer_length": 30,
-    "min_amplicon_gap": 25,
-    "max_amplicon_gap": 80,
-    "padding_bases": 3
+    "primer_length_range": [18, 30],
+    "amplicon_gap_range": [20, 80],
+    "junction_padding_bases": 3,
+    "initial_solutions": 100,
+    "top_solutions_to_keep": 4,
+    "minimum_plexity": 5,
+    "maximum_plexity": 20,
+    "target_plexity": 20,
+    "force_plexity": False,  # If True, the target_plexity will be used to force the plexity of the primers
+    "variant_threshold": 0.01
+}
+
+pcr_conditions = {
+    "annealing_temperature": 60,
+    "primer_concentration": 50,
+    "dntp_concentration": 0.6,
+    "dna_concentration": 50,
+    "mv_concentration": 50,
+    "dv_concentration": 1.5,
+    "dmso_concentration": 0.0,
+    "dmso_fact": 0.6,
+    "formamide_concentration": 0.8
+}
+
+penalties = {
+    "snp_penalty": 1.0,
+    "primer_length_penalty": 1.0,
+    "primer_complexity_penalty": 1.0,
+    "polyA_penalty": 5,
+    "polyT_penalty": 5,
+    "polyC_penalty": 10,
+    "polyG_penalty": 10,
+    "amplicon_length_penalty": 1.0
 }
 
 # Define and merge junctions
@@ -241,11 +380,6 @@ T
 # Hybridization conditions
 
 
-# Designer parameters
-
-init_solutions = 100
-top_solutions_to_keep = 4
-
 # 1. Generate potential solutions TODO Generate k-mers as initial solutions
 # 2. Score each solutions TODO define scoring algorithm, including SNP penalty
 # 3. Select top candidates for each target (init_solutions)
@@ -277,69 +411,3 @@ def generate_kmers(k_min, k_max, sequence):
 obj = generate_kmers(k_min, k_max, region)
 print(obj)
 print(len(obj))
-
-# ---------------// Hairpin analysis //------------------
-# Use primer3 to calculate hairpin
-# max seq length is 60 nucleotides
-# uses the thal library from primer3
-# results stored as ThermoResult object
-
-
-candidate_sequence = Seq("TTGTGAGTTTTTGAAATCTCTGTGA")
-
-hairpin_thermo_result = primer3.bindings.calc_hairpin(
-    seq = str(candidate_sequence),  # DNA sequence to analyze for hairpins
-    mv_conc = 50,                   # Monovalent cation conc. (mM)
-    dv_conc = 1.5,                  # Divalent cation conc. (mM)
-    dntp_conc = 0.6,                # total dNTP conc. (mM)
-    dna_conc = 50.0,                # DNA conc. (nM)
-    temp_c = 37.0,                  # Simulation temperature for dG (Celsius)
-    max_loop = 30,                  # Maximum loop size in structures
-    output_structure = False
-)
-
-print(hairpin_thermo_result)
-
-melting_temp = primer3.bindings.calc_tm(
-    seq = str(candidate_sequence), 
-    mv_conc = 50.0, 
-    dv_conc = 1.5, 
-    dntp_conc = 0.6, 
-    dna_conc = 50.0, 
-    dmso_conc = 0.0,
-    dmso_fact = 0.6,
-    formamide_conc = 0.8,
-    annealing_temp_c = 60,
-    max_nn_length = 60,
-    tm_method='santalucia',
-    salt_corrections_method='santalucia'
-)
-
-print(melting_temp)
-
-homo_dimer = primer3.bindings.calc_homodimer(
-    str(candidate_sequence), 
-    mv_conc = 50.0, 
-    dv_conc = 1.5, 
-    dntp_conc = 0.6, 
-    dna_conc = 50.0, 
-    temp_c = 37.0, 
-    max_loop = 30, 
-    output_structure = False
-)
-
-print(homo_dimer)
-
-het_dimer = primer3.bindings.calc_heterodimer(
-    str(candidate_sequence), 
-    str(candidate_sequence.reverse_complement()), 
-    mv_conc = 50.0, 
-    dv_conc = 1.5, 
-    dntp_conc = 0.6, 
-    dna_conc = 50.0, 
-    temp_c = 37.0, 
-    max_loop = 30, 
-    output_structure = False
-)
-
-print(het_dimer)
