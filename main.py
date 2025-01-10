@@ -112,7 +112,7 @@ def sort_junctions(junctions):
     """
     return sorted(junctions, key=lambda x: (x[0], x[1]))
 
-def merge_adjacent_junctions(sorted_junctions, max_gap):
+def merge_adjacent_junctions(sorted_junctions, max_amplicon_gap):
     """
     Merge junctions that are within the specified maximum gap.
     
@@ -133,7 +133,7 @@ def merge_adjacent_junctions(sorted_junctions, max_gap):
         # Only merge if on same chromosome and within max_gap
         if (current[0] == next_junction[0] and  # same chromosome
             # check if 5' position of current is within max_gap of 3' position of next junction
-            current[2] + max_gap >= next_junction[1]):  # within gap distance
+            current[2] + max_amplicon_gap >= next_junction[1]):  # within gap distance
             # Merge the junctions
             current = [
                 current[0],  # keep chromosome
