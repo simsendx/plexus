@@ -1,0 +1,45 @@
+{
+    "design" : {
+        "genome": "hg38",
+        "primer_optimal_length": 20,
+        "primer_length_range": [15, 30],
+        "amplicon_gap_range": [20, 60],
+        "max_amplicon_length": 100,
+        "junction_padding_bases": 3,
+        "initial_solutions": 100,
+        "top_solutions_to_keep": 4,
+        "variant_threshold": 0.01,
+        "5_primer_tail": "",
+        "3_prime_tail": "",
+        "snp_penalty": 1.0,
+        "primer_length_penalty": 1.0,
+        "primer_complexity_penalty": 1.0,
+        "polyA_penalty": 5,
+        "polyT_penalty": 5,
+        "polyC_penalty": 10,
+        "polyG_penalty": 10,
+        "amplicon_length_penalty": 1.0,
+        "accepted_gc_range": [30.0, 70.0],
+        "primer_pair_max_tm_difference": 5.0,
+        "max_poly_x": 4
+    },
+    "pcr" : {
+        "annealing_temperature": 60,
+        "opt_melting_temperature": 60,
+        "tm_difference": 3.0,
+        "primer_concentration": 50,
+        "dntp_concentration": 0.8,
+        "dna_concentration": 50,
+        "mv_concentration": 50,
+        "dv_concentration": 1.5,
+        "dmso_concentration": 0.0,
+        "dmso_fact": 0.6,
+        "formamide_concentration": 0.8
+    },
+    "multiplex_picker": {
+        "minimum_plexity": 5,
+        "maximum_plexity": 20,
+        "target_plexity": 20,
+        "force_plexity": false
+    }
+}

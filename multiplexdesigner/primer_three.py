@@ -106,8 +106,18 @@ def primer3_calculate_end_stability():
     """
     return primer3.bindings.calc_end_stability()
 
-def primer3_design_primers(seq_args, global_args):
+
+def primer3_design_primers(seq_args, global_args, misprime_lib = None, mishyb_lib = None):
     """
     Run the Primer3 design process.
+
+    Args:
+        seq_args (Dict[str, Any]): Primer3 sequence/design args as per Primer3 docs
+        global_args (Dict[str, Any]): Primer3 global args as per Primer3 docs
+        misprime_lib (Optional[Dict[str, Any]]): Sequence name: sequence dictionary for mispriming checks.
+        mishyb_lib (Optional[Dict[str, Any]]): Sequence name: sequence dictionary for mishybridization checks.
+
+    Returns:
+        A dictionary of Primer3 results
     """
-    return primer3.bindings.design_primers()
+    return primer3.bindings.design_primers(seq_args, global_args, misprime_lib, mishyb_lib)
