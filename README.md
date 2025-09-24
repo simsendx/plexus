@@ -139,3 +139,41 @@ https://github.com/treangenlab/Olivar
 https://hub.docker.com/r/ncbi/blast
 
 https://github.com/tamminenlab/npysearch
+
+
+
+## Primer3 scoring
+
+### Classic
+
+Is based on local or global alignment scores to estimate complementarity. See [the primer3 docs](https://www.primer3plus.com/primer3plusHelp.html#PRIMER_MAX_SELF_ANY).
+
+The scoring system gives 1.00 for complementary bases, -0.25 for a match of any base (or N) with an N, -1.00 for a mismatch, and -2.00 for a gap. Only single-base-pair gaps are allowed. For example, the alignment
+
+   5' ATCGNA 3'
+      || | |
+   3' TA-CGT 5'
+
+is allowed (and yields a score of 1.75), but the alignment
+
+   5' ATCCGNA 3'
+      ||  | |
+   3' TA--CGT 5'
+
+is not considered. Scores are non-negative, and a score of 0.00 indicates that there is no reasonable local alignment between two oligos.
+
+### Thermodynamic
+
+The melting temperature of the most stable structure is calculated. To calculate secondary structures nearest-neighbor parameters for perfect matches, single internal mismatches, terminal mismatches, dangling ends have been used. Also parameters for increments for length dependence of bulge and internal loops have been used. This parameter is calculated only if PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT=1. The default value is 10 degrees lower than the default value of PRIMER_MIN_TM. For example, the alignment width length 15nt
+
+  5' ATTAGATAGAGCATC 3'
+  3' TAATCTATCTCGTAG 5'
+
+is allowed (and yields a melting temperature of 32.1493 width by default Primer3 parameters), but the alignment
+
+     T        C
+  5'  GCGGCCGC GCGC 3'
+  3'  CGCCGGCG CGCG 5'
+     A        A
+
+is not considered (Tm=57.0997 and the length of oligo is 14nt).

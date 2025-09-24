@@ -64,7 +64,7 @@ class MultiplexPanel:
         else:
             # Default configuration
             config = {
-                "design": {
+                "singleplex_design_parameters": {
                     "primer_length_range": [18, 30],
                     "amplicon_gap_range": [20, 60],
                     "max_amplicon_length": 100,
@@ -100,8 +100,8 @@ class MultiplexPanel:
                 }
             }
         
-        self.design_config = config.get("design", {})
-        self.pcr_config = config.get("pcr", {})
+        self.design_config = config.get("singleplex_design_parameters", {})
+        self.pcr_config = config.get("pcr_conditions", {})
         
     def import_junctions_csv(self, file_path: str):
         """Import junctions from CSV file using pandas"""
