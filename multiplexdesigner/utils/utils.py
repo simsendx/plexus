@@ -253,8 +253,8 @@ def check_kmer(
     kmer_gc = gc_content(kmer)
     return (
         min_gc <= kmer_gc <= max_gc               # Should be True
-        and not check_N_in_kmers(kmer, max_N)     # Should be false
-        and not find_max_poly_X(kmer, max_poly_X) # Should be false
+        and not check_N_in_kmers(kmer, max_N)     # Should be False
+        and not find_max_poly_X(kmer, max_poly_X) # Should be False
     )
 
 def filter_kmers(kmers, max_poly_X = 4, max_N = 0):

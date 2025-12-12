@@ -14,7 +14,25 @@ from multiplexdesigner.utils.utils import generate_kmers, filter_kmers, reverse_
 
 # TODO: All designer options (custom, primer3py, primer3) should return data in the same format for downstram processing.
 
-def design_primers(multiplexpanel, parallel: bool = False):
+def design_primers(multiplexpanel, method: str = "simsen", parallel: bool = False):
+    """
+    Wrapper function to call the various design algorithms.
+
+    Args:
+        multiplexpanel: An instantiated MultiplexPanel object with design regions.
+        method: Design algorithm to use; defaults to "simsen".
+        parallel: Boolean. If true, uses parallelized functions. Default is False.
+
+    Returns:
+        A MultiplexPanel object with primer designs.
+    """
+    if method == "simsen":
+        return design_multiplex_primers(multiplexpanel, parallel = parallel)
+    if method == "primer3":
+        return primer3py_design_primers(multiplexpanel)
+
+
+def design_multiplex_primers(multiplexpanel, parallel: bool = False):
     """
     A function that picks individual primers left and right of the provided junctions.
 
@@ -37,37 +55,44 @@ def design_primers(multiplexpanel, parallel: bool = False):
     max_primer_length = panel.config['singleplex_design_parameters']['primer_max_length']
     max_poly_X = panel.config['singleplex_design_parameters']['primer_max_poly_x']
     max_N = panel.config['singleplex_design_parameters']['primer_max_n']
+    min_gc = panel.config['singleplex_design_parameters']['primer_min_gc']
+    max_gc = panel.config['singleplex_design_parameters']['primer_max_gc']
+    min_region_length = 2 * max_primer_length
 
     # Pick primers to left and right of each junction
     for junction in panel.junctions:
-        logger.info("#=============================================================#")
-        logger.info(junction.name)
+        logger.info(f"#========================// {junction.name} //============================#")
 
         # Get the design regions left and right of the junction, respectively.
         left_region = junction.design_region[1:junction.jmin_coordinate]
 
-        # TODO: Should the right region be reverse complemented here?
+        # Should the right region be reverse complemented here?
         right_region = reverse_complement(junction.design_region[junction.jmax_coordinate:junction.junction_length])
 
-        # Check if design regions allow enough space to evaluate primers, expect around 50-60 bases for typical values of max_primer_length
-        # TODO this should probably be checked upstream when design regions are calculated.
-        if len(left_region) < 2 * max_primer_length:
-            logger.error("Left primer region less than 2x max_primer_length")
-            raise ValueError("Left primer region less than 2x max_primer_length")
-        if len(right_region) < 2 * max_primer_length:
-            logger.error("Right primer region less than 2x max_primer_length")
-            raise ValueError("Right primer region less than 2x max_primer_length")
+        # This generates candidate primers, returns a list of Primer class objects, which have
+        # been filtered based on length and basic sequence properties.
+        for orientation, region in [("forward", left_region), ("reverse", right_region)]:
+            if len(region) < min_region_length:
+                error_msg = f"{orientation} primer region for junction {junction.name} is less than {min_region_length} (2x max primer length)."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
 
-        # Generate k-mer solutions for left and right target regions (all possible sequences within min/max primer length)
-        # TODO: these should generate Primer objects instead
-        left_kmers = generate_kmers(left_region, min_primer_length, max_primer_length)
-        right_kmers = generate_kmers(right_region, min_primer_length, max_primer_length)
-        logger.info(f'kmers to evaluate: Left: {len(left_kmers)}; Right: {len(right_kmers)}')
-
-        # Filter kmers based on basic sequence properties
-        left_kmers = filter_kmers(left_kmers, max_poly_X, max_N)
-        right_kmers = filter_kmers(right_kmers, max_poly_X, max_N)
-        logger.info(f'kmers after basic filtering: Left: {len(left_kmers)}; Right: {len(right_kmers)}')
+            kmers = generate_kmers(
+                target_name = junction.name,
+                target_sequence = region,
+                logger = logger,
+                orientation = orientation,
+                k_min = min_primer_length,
+                k_max = max_primer_length,
+                max_poly_X = max_poly_X,
+                max_N = max_N,
+                min_gc = min_gc,
+                max_gc = max_gc
+            )
+            if orientation == "forward":
+                left_kmers = kmers
+            else:
+                right_kmers = kmers
 
         # Warn or raise error if too few kmers found.
         # TODO adjust the values and improve handling.
@@ -85,6 +110,7 @@ def design_primers(multiplexpanel, parallel: bool = False):
             logger.error("No right kmers found.")
             raise ValueError("No right kmers found.")
 
+        # Calculate thermodynamic properties of candidate primers and remove low quality primers based on config.
         if parallel:
             # Run both left and right primers at the same time using 
             left_primers, right_primers = calculate_single_primer_thermodynamics_parallel(left_kmers = left_kmers, right_kmers = right_kmers, config = panel.config, logger = logger)
@@ -110,15 +136,15 @@ def design_primers(multiplexpanel, parallel: bool = False):
     return(panel)
 
 
-def primer3py_design_primers(panel_logger, thal = 1, save_designs = False):
+def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
     """
     Create a panel object and calculate junctions. Then run primer3 design on the junctions
     and retain the top primers for each juction.
 
     Returns a MultiplexPanel object.
     """
-    panel = panel_logger[1]
-    logger = panel_logger[0]
+    panel = multiplexpanel[1]
+    logger = multiplexpanel[0]
 
     num_expected = panel.config['singleplex_design_parameters']['PRIMER_NUM_RETURN']
 
