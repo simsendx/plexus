@@ -8,11 +8,13 @@
 import os
 import json
 import uuid
+import primer3
 import pandas as pd
 from typing import List
 from Bio import SeqIO
 from dataclasses import dataclass
 from datetime import datetime
+from multiplexdesigner.designer.primer import PrimerPair
 from multiplexdesigner.utils.utils import setup_logger
 from multiplexdesigner.utils.root_dir import ROOT_DIR
 
@@ -66,13 +68,137 @@ class Junction:
     jmin_coordinate: int = None
     jmax_coordinate: int = None
     primer_designs: object = None
+    primer_pairs: list = None
 
     def __repr__(self):
         return f"Junction({self.name}, {self.chrom}:{self.start}-{self.end})"
 
-    #TODO: Write method to print/save self.primer_designs.primer_table
-    def print_primer_designs(self):
+    def get_primer_designs(self):
         return self.primer_designs.primer_table
+
+    #TODO: Write method to print/save self.primer_designs.primer_table
+    def save_primer_designs(self):
+        pass
+
+    def find_primer_pairs(
+        self,
+        logger: object,
+        min_amplicon_length: int = 40,
+        max_amplicon_length: int = 100,
+        max_primer_tm_difference: int = 3,
+        product_opt_size: int = 0,
+        wt_pr_penalty: float = 1.0,
+        wt_product_size_gt: float = 1.0,
+        wt_product_size_lt: float = 1.0,
+        wt_diff_tm: float = 1.0
+
+    ) -> list[tuple[object, object]]:
+        """
+        Optimized version using sorted primers for better performance.
+
+        Args:
+            self: A junction object
+            logger: A logger object
+            config: A panel design config
+            min_amplicon_length: Minimal length of the entire amplicon, incl. primers.
+            max_amplicon_length: Maximal length of the entire amplicon, incl. primers.
+            max_primer_tm_difference: Maximum difference in melting temperature between primers.
+            product_opt_size: Optimal PCR product size
+            pair_max_compl_any_th: describes the tendency of the left primer to bind to the right primer
+            pair_max_compl_end_th: tries to bind the 3'-END of the left primer to the right primer
+
+        Returns:
+            A list of tuples with (forward, reverse) primer objects.
+        """
+        valid_pairs = []
+
+        logger.info(f"finding suitable primer pairs for junction: {self.name}")
+
+        left_primers = self.primer_designs.primer_table[0] 
+        right_primers = self.primer_designs.primer_table[1]
+        
+        # Sort primers by start position
+        left_sorted = sorted(left_primers, key=lambda p: p.start)
+        right_sorted = sorted(right_primers, key=lambda p: p.start)
+
+        # Init counters
+        n_too_short = 0
+        n_too_long = 0
+        primer_tm_diff_too_large = 0
+        primer_dimer_too_stable = 0
+        primer_three_prime_too_stable = 0
+
+        for left_primer in left_sorted:
+            for right_primer in right_sorted:
+                # Skip right primers that start before left primer ends
+                if right_primer.start < left_primer.start + left_primer.length:
+                    continue
+                
+                primer_pair_tm_dif = abs(right_primer.tm - left_primer.tm)
+                if primer_pair_tm_dif > max_primer_tm_difference:
+                    primer_tm_diff_too_large += 1
+                    continue
+                
+                # Amplicon length includes primer sequences
+                amplicon_length = (right_primer.start + right_primer.length) - left_primer.start
+                
+                # If amplicon is too short, continue to next right primer
+                if amplicon_length < min_amplicon_length:
+                    n_too_short += 1
+                    continue
+                
+                # If amplicon is too long, no need to check further right primers
+                if amplicon_length > max_amplicon_length:
+                    n_too_long += 1
+                    break
+                
+                # Get amplicon sequence and calculate product Tm
+                design_region = self.design_region
+                amplicon_start = left_primer.start
+                amplicon_end = right_primer.start + right_primer.length
+                amplicon_sequence = design_region[amplicon_start:amplicon_end]
+
+                insert_start = left_primer.start + left_primer.length
+                insert_end = right_primer.start
+                insert_size = len(design_region[insert_start:insert_end])
+
+                pair = PrimerPair(
+                    forward = left_primer,
+                    reverse = right_primer, 
+                    insert_size = insert_size, 
+                    amplicon_sequence = amplicon_sequence,
+                    amplicon_length = amplicon_length, 
+                    pair_id = f"{left_primer.name}_{right_primer.name}"
+                )
+
+                # TODO: Calculate the thermodyanamics of primer-to-primer binding in each pair. This can also be
+                # done at the primer pair selection step? Should these be calculated here?
+                
+                #logger.info(f"Left seq: {left_primer.seq}; Right seq: {right_primer.seq}")
+                #logger.info(f"Left penalty: {left_primer.penalty}; Right penalty: {right_primer.penalty}")
+
+                # Calculate primer pair penalty (similar to primer3)
+                pair.pair_penalty = pair.calculate_primer_pair_penalty_th(
+                    primer_left_penalty = left_primer.penalty,
+                    primer_right_penalty = right_primer.penalty,
+                    primer_left_tm = left_primer.tm,
+                    primer_right_tm = right_primer.tm,
+                    product_size = amplicon_length,
+                    product_opt_size = product_opt_size,
+                    wt_pr_penalty = wt_pr_penalty,
+                    wt_product_size_gt = wt_product_size_gt,
+                    wt_product_size_lt = wt_product_size_lt,
+                    wt_diff_tm = wt_diff_tm
+                )
+
+                valid_pairs.append(pair)
+        
+        logger.info(f"Considered {len(left_sorted)} left and {len(right_sorted)} right primers. Found: {len(valid_pairs)} valid primer pairs.")
+        logger.info(f"Amplicon too short: {n_too_short}; Amplicon too long: {n_too_long}; Primer Tm difference larger than {max_primer_tm_difference}: {primer_tm_diff_too_large}")
+        logger.info(f"Primer dimers too stable: {primer_dimer_too_stable}; 3'-ends too stable: {primer_three_prime_too_stable}")
+
+        return valid_pairs
+
 
 
 # ================================================================================
@@ -91,8 +217,20 @@ class MultiplexPanel:
         self.config = None
         self.junction_df = None
         
-    def load_config(self, logger, config_path: str = None, config_dict: dict = None):
-        """Load design and PCR configuration parameters"""
+    def load_config(self, logger, preset: str = "default", config_path: str = None, config_dict: dict = None):
+        """
+        Load design and PCR configuration parameters.
+
+        Args: 
+            self: A MultiplexPanel object
+            logger: A logger object
+            preset: Which standard config file to use? Either "default" or "lenient".
+            config_path: User-provided config from a file. If none is provided, the config is chosen based on the preset value.
+            config_dict: User-provided config from a dictionary. If none is provided, the config is chosen based on the preset value.
+        
+        Returns:
+            A MultiplexPanel object with loaded configuration.
+        """
         if config_dict:
             config = config_dict
             logger.info("Config loaded from dictionary.")
@@ -101,12 +239,21 @@ class MultiplexPanel:
                 config = json.load(f)
             logger.info(f"Config loaded from: {config_path}")
         else:
-            # Use default configuration
-            default_config_path = f"{ROOT_DIR}/config/designer_default_config.json"
-            logger.info("No config file provided, using default configuration.")
-            with open(default_config_path, 'r') as f:
+            logger.info(f"No config file provided, using preset configuration: {preset}")
+            if preset == "default":
+                config_path = f"{ROOT_DIR}/config/designer_default_config.json"
+            elif preset == "lenient":
+                config_path = f"{ROOT_DIR}/config/designer_lenient_config.json"
+            else:
+                config_path = f"{ROOT_DIR}/config/designer_default_config.json"
+
+                warn_msg = f"Preset value `{preset}` must be either 'default' or 'lenient'. Using default instead."
+                logger.warning(warn_msg)
+                raise Warning(warn_msg)
+
+            with open(config_path, 'r') as f:
                 config = json.load(f)
-            logger.info(f"Default config loaded from: {default_config_path}")
+            logger.info(f"Config loaded from: {config_path}")
 
         self.config = config
         
@@ -502,18 +649,33 @@ class MultiplexPanel:
             raise IOError(error_msg)
 
 
-# Initialise panel_logger object
-def panel_factory(name: str, genome: str, design_input_file: str, fasta_file: str, config_file: str = None, padding: int = 300):
+# Initialise MultiplexPanel object and a logger
+def panel_factory(name: str, genome: str, design_input_file: str, fasta_file: str, preset: str = "default", config_file: str = None, padding: int = 200):
     """
     Set up the logger, load the configuration, create and configure the panel,
     and prepare it for primer design.
-    Returns a tuple: (logger, panel)
+
+    Args:
+        name: Required. Name of the panel.
+        genome: Required. Name of the reference genome to pull.
+        design_input_file: Required. Samplesheet containing junction around which to design primers.
+        fasta_file: Required. Reference fasta file.
+        config_file: Optional. Configuration file to use, otherwise uses the default config.
+        padding: Optional. How many bases around the junction should be extracted for the design region? Default is 200.
+
+    Returns:
+        A tuple: (logger, panel)
     """
     logger = setup_logger()
 
     # Create and configure the multiplex panel object
     panel = MultiplexPanel(name, genome)
-    panel.load_config(config_path=config_file, logger=logger)  # Handles default internally
+
+    # Load config file. This handles defaults internally if none is provided by the user. 
+    # User provided configs overwrite all defaults. 
+    # TODO: Add checks for user provided configs.
+    # TODO: Allow user to provide subconfigs only, which overwrite only the specified parameters
+    panel.load_config(logger=logger, preset=preset, config_path=config_file)  
 
     # Retrieve design regions and calculate junctions
     panel.import_junctions_csv(file_path=design_input_file, logger=logger)
@@ -521,7 +683,4 @@ def panel_factory(name: str, genome: str, design_input_file: str, fasta_file: st
     panel.extract_design_regions_from_fasta(fasta_file, logger=logger, padding=padding)
     panel.calculate_junction_coordinates_in_design_region()
 
-    return logger, panel
-
-
-
+    return panel, logger

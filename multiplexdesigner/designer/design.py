@@ -1,15 +1,16 @@
+import os
 import json
 import primer3
 import warnings
-from multiplexdesigner.designer.thal import calculate_single_primer_thermodynamics, calculate_single_primer_thermodynamics_parallel
 from multiplexdesigner.designer.multiplexpanel import PrimerDesigns
-from multiplexdesigner.utils.utils import generate_kmers, filter_kmers, reverse_complement
+from multiplexdesigner.designer.thal import calculate_single_primer_thermodynamics, calculate_single_primer_thermodynamics_parallel
+from multiplexdesigner.utils.utils import generate_kmers, reverse_complement
 
 # ================================================================================
 # Two functions for primer design:
 #       - simsen_design_primers: Custom function
 #       - primer3py_design_primers: Uses primer3-py bindings for primer3
-#       - primer3_design_primers: Runs local primer3
+#       - primer3_design_primers: Runs local primer3 (Not currently implemented)
 # ================================================================================
 
 # TODO: All designer options (custom, primer3py, primer3) should return data in the same format for downstram processing.
@@ -19,7 +20,7 @@ def design_primers(multiplexpanel, method: str = "simsen", parallel: bool = Fals
     Wrapper function to call the various design algorithms.
 
     Args:
-        multiplexpanel: An instantiated MultiplexPanel object with design regions.
+        multiplexpanel: An instantiated MultiplexPanel object created with the panel_factory function.
         method: Design algorithm to use; defaults to "simsen".
         parallel: Boolean. If true, uses parallelized functions. Default is False.
 
@@ -42,15 +43,16 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
     Returns:
         A MultiplexPanel object containing the left and right primer designs for each junction.
     """
-    
-    # Pretty CLI interface
-    #display_welcome()
+
+    #=============================================
+    # Common parameters for all junctions
+    #=============================================
 
     # Get logger and panel object
-    logger = multiplexpanel[0]
-    panel = multiplexpanel[1]
+    panel = multiplexpanel[0]
+    logger = multiplexpanel[1]
 
-    # Common parameters for all junctions
+    # Single primer parameters
     min_primer_length = panel.config['singleplex_design_parameters']['primer_min_length']
     max_primer_length = panel.config['singleplex_design_parameters']['primer_max_length']
     max_poly_X = panel.config['singleplex_design_parameters']['primer_max_poly_x']
@@ -59,9 +61,27 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
     max_gc = panel.config['singleplex_design_parameters']['primer_max_gc']
     min_region_length = 2 * max_primer_length
 
+    # Primer pair parameters
+    min_amplicon_length = panel.config['primer_pair_parameters']['PRIMER_PRODUCT_MIN_INSERT_SIZE'] + 2 * min_primer_length
+    max_amplicon_length = panel.config['primer_pair_parameters']['PRIMER_PRODUCT_MAX_SIZE']
+    max_primer_tm_difference = panel.config['primer_pair_parameters']['PRIMER_PAIR_MAX_DIFF_TM']
+    pair_product_opt_size = panel.config['primer_pair_parameters']['PRIMER_PRODUCT_OPT_SIZE']
+
+    # Weights for primer pair penalty calculations
+    wt_pr_penalty = panel.config['primer_pair_parameters']['PRIMER_PAIR_WT_PR_PENALTY']
+    wt_product_size_gt = panel.config['primer_pair_parameters']['PRIMER_PAIR_WT_PRODUCT_SIZE_GT']
+    wt_product_size_lt = panel.config['primer_pair_parameters']['PRIMER_PAIR_WT_PRODUCT_SIZE_LT']
+    wt_diff_tm = panel.config['primer_pair_parameters']['PRIMER_PAIR_WT_DIFF_TM']
+
+    #=============================================
+    # Start designing
+    #=============================================
+
+    j = 0
     # Pick primers to left and right of each junction
     for junction in panel.junctions:
         logger.info(f"#========================// {junction.name} //============================#")
+        j += 1
 
         # Get the design regions left and right of the junction, respectively.
         left_region = junction.design_region[1:junction.jmin_coordinate]
@@ -71,7 +91,9 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
 
         # This generates candidate primers, returns a list of Primer class objects, which have
         # been filtered based on length and basic sequence properties.
-        for orientation, region in [("forward", left_region), ("reverse", right_region)]:
+        # The offset is necessary as the start positions of the generated kmer (on the design_region) are starting at position jmax_coordinate
+        # for the reverse primer and at 1 for the forard primer.
+        for orientation, region, offset in [("forward", left_region, 1), ("reverse", right_region, junction.jmax_coordinate)]:
             if len(region) < min_region_length:
                 error_msg = f"{orientation} primer region for junction {junction.name} is less than {min_region_length} (2x max primer length)."
                 logger.error(error_msg)
@@ -82,6 +104,7 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
                 target_sequence = region,
                 logger = logger,
                 orientation = orientation,
+                position_offset = offset,
                 k_min = min_primer_length,
                 k_max = max_primer_length,
                 max_poly_X = max_poly_X,
@@ -123,6 +146,7 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
 
         eval_string = f"LEFT PRIMERS: {left_eval_string}, RIGHT PRIMERS: {right_eval_string}"
 
+        # Save designs in junction object
         junction.primer_designs = PrimerDesigns(
             name = f"{junction.name}_designs",
             target = junction.name,
@@ -131,20 +155,34 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
             primer_table = primer_table
         )
 
-        logger.info(f'primers retained post theromdynamic alignment: Left: {len(left_primers)}, right {len(right_primers)}')
+        logger.info(f'Primers retained post theromdynamic alignment: Left: {len(left_primers)}, right {len(right_primers)}')
 
+        # Find suitable primer pairs from initial designs and calculate primer pair penalties
+        junction.primer_pairs = junction.find_primer_pairs(
+            logger = logger,
+            min_amplicon_length = min_amplicon_length,
+            max_amplicon_length = max_amplicon_length,
+            max_primer_tm_difference = max_primer_tm_difference,
+            product_opt_size = pair_product_opt_size,
+            wt_pr_penalty = wt_pr_penalty,
+            wt_product_size_gt = wt_product_size_gt,
+            wt_product_size_lt = wt_product_size_lt,
+            wt_diff_tm = wt_diff_tm
+        )
+
+    logger.info(f"Finished designing primers for {j} junctions in panel {panel.panel_name}.")
     return(panel)
 
 
-def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
+def primer3py_design_primers(multiplexpanel, thal: int = 1, save_designs: bool = False, outdir: str = None):
     """
     Create a panel object and calculate junctions. Then run primer3 design on the junctions
     and retain the top primers for each juction.
 
     Returns a MultiplexPanel object.
     """
-    panel = multiplexpanel[1]
-    logger = multiplexpanel[0]
+    panel = multiplexpanel[0]
+    logger = multiplexpanel[1]
 
     num_expected = panel.config['singleplex_design_parameters']['PRIMER_NUM_RETURN']
 
@@ -155,7 +193,7 @@ def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
 
         # Set global design arguments for primer3. For details check the [manual](https://primer3.org/manual.html)
         global_args={
-            'PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT': thal,     # If set to 1, use thermodynamic values (parameters ending in "_TH")
+            'PRIMER_THERMODYNAMIC_OLIGO_ALIGNMENT': thal,
             'PRIMER_THERMODYNAMIC_TEMPLATE_ALIGNMENT': thal,
             'PRIMER_TM_FORMULA': 1,
             'PRIMER_SALT_CORRECTIONS': 1,
@@ -168,13 +206,13 @@ def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
             'PRIMER_MIN_TM': panel.config['singleplex_design_parameters']['PRIMER_MIN_TM'],
             'PRIMER_MAX_TM': panel.config['singleplex_design_parameters']['PRIMER_MAX_TM'],
             'PRIMER_PAIR_MAX_DIFF_TM': panel.config['singleplex_design_parameters']['primer_pair_max_tm_difference'],
-            'PRIMER_SALT_MONOVALENT': panel.config['pcr_conditions']['mv_concentration'],           # The millimolar (mM) concentration of monovalent salt cations (usually KCl) in the PCR.
-            'PRIMER_SALT_DIVALENT': panel.config['pcr_conditions']['dv_concentration'],             # The millimolar concentration of divalent salt cations (usually MgCl^(2+)) in the PCR. 
+            'PRIMER_SALT_MONOVALENT': panel.config['pcr_conditions']['mv_concentration'],
+            'PRIMER_SALT_DIVALENT': panel.config['pcr_conditions']['dv_concentration'],
             'PRIMER_DNA_CONC': panel.config['pcr_conditions']['primer_concentration'],
-            'PRIMER_DNTP_CONC': panel.config['pcr_conditions']['dntp_concentration'],               # Millimolar concentration of the sum of all deoxyribonucleotide triphosphates (e.g. 4x 0.2=0.8)
+            'PRIMER_DNTP_CONC': panel.config['pcr_conditions']['dntp_concentration'],
             'PRIMER_DMSO_CONC': panel.config['pcr_conditions']['dmso_concentration'],
             'PRIMER_FORMAMIDE_CONC': panel.config['pcr_conditions']['formamide_concentration'],
-            'PRIMER_OPT_GC_PERCENT': panel.config['singleplex_design_parameters']['PRIMER_OPT_GC_PERCENT'],     # Optimum GC percent. This parameter influences primer selection only if PRIMER_WT_GC_PERCENT_GT or PRIMER_WT_GC_PERCENT_LT are non-0.
+            'PRIMER_OPT_GC_PERCENT': panel.config['singleplex_design_parameters']['PRIMER_OPT_GC_PERCENT'],
             'PRIMER_MIN_GC': panel.config['singleplex_design_parameters']['primer_min_gc'],
             'PRIMER_MAX_GC': panel.config['singleplex_design_parameters']['primer_max_gc'],
             'PRIMER_GC_CLAMP': 0,
@@ -193,10 +231,10 @@ def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
             'PRIMER_MAX_HAIRPIN_TH': panel.config['singleplex_design_parameters']['PRIMER_MAX_HAIRPIN_TH'],
             'PRIMER_MAX_TEMPLATE_MISPRIMING_TH': panel.config['singleplex_design_parameters']['PRIMER_MAX_TEMPLATE_MISPRIMING_TH'],
             'PRIMER_PAIR_MAX_TEMPLATE_MISPRIMING_TH': panel.config['singleplex_design_parameters']['PRIMER_PAIR_MAX_TEMPLATE_MISPRIMING_TH'],
-            'PRIMER_WT_SIZE_LT': panel.config['singleplex_design_parameters']['primer_length_penalty'],       # Penalty weight for primers shorter than PRIMER_OPT_SIZE.
-            'PRIMER_WT_SIZE_GT': panel.config['singleplex_design_parameters']['primer_length_penalty'],       # Penalty weight for primers longer than PRIMER_OPT_SIZE.
-            'PRIMER_WT_GC_PERCENT_LT': panel.config['singleplex_design_parameters']['PRIMER_WT_GC_PERCENT_LT'],                                          # Penaly weight for lower than opt GC content
-            'PRIMER_WT_GC_PERCENT_GT': panel.config['singleplex_design_parameters']['PRIMER_WT_GC_PERCENT_GT'],                                          # Penaly weight for greater than opt GC content
+            'PRIMER_WT_SIZE_LT': panel.config['singleplex_design_parameters']['primer_length_penalty'],
+            'PRIMER_WT_SIZE_GT': panel.config['singleplex_design_parameters']['primer_length_penalty'],
+            'PRIMER_WT_GC_PERCENT_LT': panel.config['singleplex_design_parameters']['PRIMER_WT_GC_PERCENT_LT'],
+            'PRIMER_WT_GC_PERCENT_GT': panel.config['singleplex_design_parameters']['PRIMER_WT_GC_PERCENT_GT'],
             'PRIMER_WT_SELF_ANY': 5.0,
             'PRIMER_WT_SELF_ANY_TH': 5.0,
             'PRIMER_WT_HAIRPIN_TH': 1.0,
@@ -254,8 +292,25 @@ def primer3py_design_primers(multiplexpanel, thal = 1, save_designs = False):
         # Save design to file
         if save_designs:
             outfile = f"{junction.name}_primer3_out.json"
-            with open(outfile, 'w') as f:
-                json.dump(junction.primer3_designs, f, indent = 4)
-            logger.info(f"Saving primer3 designs to file: {outfile}")
+            # Determine the output directory
+            if outdir:
+                output_dir = outdir
+            else:
+                output_dir = os.path.expanduser("~")  # User's home directory
+
+            # Ensure the output directory exists
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Construct the full output path
+            outfile_path = os.path.join(output_dir, outfile)
+
+            # Save the file
+            with open(outfile_path, 'w') as f:
+                json.dump(junction.primer3_designs, f, indent=4)
+
+            logger.info(f"Saving primer3 designs to file: {outfile_path}")
 
     return(panel)
+
+
+

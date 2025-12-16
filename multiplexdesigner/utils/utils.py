@@ -2,7 +2,6 @@ import pandas as pd
 import warnings
 import logging
 from datetime import datetime
-from multiplexdesigner.designer.primer import Primer
 
 # TODO: Implement fasta conversion of primer sequences for BLAST input
 def write_fasta_from_dict(input_dt, output_fasta):
@@ -175,6 +174,7 @@ def generate_kmers(
     target_sequence: str,
     logger: object,
     orientation: str,
+    position_offset: int = 0,
     k_min: int = 18,
     k_max: int = 25,
     max_poly_X: int = 4,
@@ -189,6 +189,7 @@ def generate_kmers(
         target_name - Name of the target region, will be used for naming candidate primers
         target_sequence - Region from which to extract kmers
         orientation - Either forward or reverse
+        position_offest: By how much is target_sequence shifted from the origial template sequence?
         k_min - Minimum length of kmers
         k_max - Maximum length of kmers
         max_poly_X - Max number of times a base can occur in a row, .e.g AAAAA
@@ -196,6 +197,8 @@ def generate_kmers(
         min_gc - Minimum GC content of kmer
         max_gc - Maximum GC content of kmer
     """
+    from multiplexdesigner.designer.primer import Primer
+    
     if k_min >= k_max:
         error_msg = f'Min kmer length ({k_min}) must be smaller than max kmer length ({k_max})'
         logger.error(error_msg)
@@ -222,14 +225,23 @@ def generate_kmers(
             kmer_counter += 1
             kmer = target_sequence[x:x+k]
 
-            if check_kmer(kmer, max_poly_X=max_poly_X,max_N=max_N,min_gc=min_gc,max_gc=max_gc):
+            if check_kmer(kmer, max_poly_X = max_poly_X, max_N = max_N,min_gc = min_gc,max_gc = max_gc):
                 kmer_filtered_counter += 1
+
+                # Calculate the correct start position
+                if orientation == "reverse" or orientation == "right":
+                    # For reverse primers, convert position to original forward coordinates
+                    # The end of the kmer in the RC sequence corresponds to the start in the forward
+                    start_pos = position_offset + len(target_sequence) - (x + k)
+                else:
+                    start_pos = position_offset + x
+
                 # If pass: Instantiate kmer as Primer object
                 good_kmer = Primer(
                     name =  f"{target_name}_{kmer_filtered_counter}_{orientation}",
                     seq =  kmer,
                     direction =  orientation,
-                    start =  x,
+                    start =  start_pos,
                     length =  k,
                 )
 

@@ -10,7 +10,6 @@ import math
 import multiprocessing
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor
-from multiplexdesigner.designer.primer import Primer
 from multiplexdesigner.utils.utils import gc_content
 
 # Kelvin to Celsius conversion factor
@@ -373,7 +372,6 @@ def calculate_single_primer_thermodynamics(primer_list, config, logger, orientat
     primer_max_self_end = config['singleplex_design_parameters']['PRIMER_MAX_SELF_END_TH']
     primer_max_end_stability = config['singleplex_design_parameters']['PRIMER_MAX_END_STABILITY']
 
-    # TODO: Should this be a tuple?
     good_primers = []
 
     # Iterate over all primers in the list. Hard filters are ordered such that more common reasons for exclusion are first,
@@ -405,18 +403,18 @@ def calculate_single_primer_thermodynamics(primer_list, config, logger, orientat
         primer_penalty = 0
 
         # Sanity check primer size, these should have been handeled elsewhere already
-        primer_length = len(primer)
+        primer_length = len(primer.seq)
         if (primer_length > config['singleplex_design_parameters']['primer_max_length']) or (primer_length < config['singleplex_design_parameters']['primer_min_length']):
             raise ValueError(f'Primer length of {primer_length} does not match thresholds.')
 
         # Sanity check: PRIMER_MAX_GC and PRIMER_MIN_GC
-        primer_gc = gc_content(primer)
+        primer_gc = gc_content(primer.seq)
         if (primer_gc > config['singleplex_design_parameters']['primer_max_gc']) or (primer_gc < config['singleplex_design_parameters']['primer_min_gc']):
             raise ValueError(f'GC-content of {primer_gc} does not match thresholds.')
 
         # Primer Melting temperature and amount bound
         tm_bound = seqtm(
-            seq = primer,
+            seq = primer.seq,
             salt_conc = config['pcr_conditions']['mv_concentration'],
             divalent_conc = config['pcr_conditions']['dv_concentration'],
             dntp_conc = config['pcr_conditions']['dntp_concentration'],
@@ -454,28 +452,28 @@ def calculate_single_primer_thermodynamics(primer_list, config, logger, orientat
 
         # PRIMER_MAX_HAIRPIN_TH
         # This is the most stable monomer structure of internal oligo calculated by thermodynamic approach.
-        PRIMER_MAX_HAIRPIN_TH = oligo_calc.calc_hairpin(primer).tm
+        PRIMER_MAX_HAIRPIN_TH = oligo_calc.calc_hairpin(primer.seq).tm
         if PRIMER_MAX_HAIRPIN_TH > primer_max_hairpin_tm:
             self_hairpin += 1
             continue
 
         # Check: PRIMER_MAX_SELF_ANY_TH
         # The melting temperature of the most stable structure is calculated.
-        PRIMER_SELF_ANY_TH = oligo_calc.calc_homodimer(primer).tm
+        PRIMER_SELF_ANY_TH = oligo_calc.calc_homodimer(primer.seq).tm
         if PRIMER_SELF_ANY_TH > primer_max_self_any:
             self_dimer_any +=1
             continue
         
         # PRIMER_MAX_SELF_END_TH
         # tries to bind the 3'-END to an identical primer and scores the best binding it can find.
-        PRIMER_MAX_SELF_END_TH = oligo_calc.calc_end_stability(primer,primer).tm
+        PRIMER_MAX_SELF_END_TH = oligo_calc.calc_end_stability(primer.seq,primer.seq).tm
         if PRIMER_MAX_SELF_END_TH > primer_max_self_end:
             self_dimer_end += 1
             continue
         
         # PRIMER_END_STABILITY
         # The maximum stability for the last five 3' bases of a left or right primer. Bigger numbers mean more stable 3' ends.
-        PRIMER_END_STABILITY = end_oligodg(primer, 5)
+        PRIMER_END_STABILITY = end_oligodg(primer.seq, 5)
         if PRIMER_END_STABILITY > primer_max_end_stability:
             primer_3prime_too_stable += 1
             continue
@@ -553,37 +551,19 @@ def calculate_single_primer_thermodynamics(primer_list, config, logger, orientat
         # Primer 3'-end stability penalty
         primer_penalty += PRIMER_WT_END_STABILITY * PRIMER_END_STABILITY
 
-        # TODO: This should return a Primer object instead
-        good_primer = {
-            "primer_sequence": primer,
-            "primer_tm": primer_tm,
-            "primer_bound": primer_bound,
-            "primer_gc": primer_gc,
-            "primer_penalty": round(primer_penalty,1),
-            "primer_self_any_th": PRIMER_SELF_ANY_TH,
-            'primer_max_hairpin_th': PRIMER_MAX_HAIRPIN_TH,
-            'primer_max_end_th': PRIMER_MAX_SELF_END_TH,
-            'primer_end_stability': PRIMER_END_STABILITY
-        }
+        # Add values to Primer object
+        primer.bound =  round(primer_bound,2)
+        primer.tm =  round(primer_tm,2)
+        primer.gc =  round(primer_gc,2)
+        primer.penalty =  round(primer_penalty,1)
+        primer.self_any_th =  round(PRIMER_SELF_ANY_TH,2)
+        primer.self_end_th =  round(PRIMER_MAX_SELF_END_TH,2)
+        primer.hairpin_th =  round(PRIMER_MAX_HAIRPIN_TH,2)
+        primer.end_stability = round(PRIMER_END_STABILITY,2)
+        primer.engine = "custom"
 
-        final_primer = Primer(
-            name =  "",
-            seq =  primer,
-            direction =  orientation,
-            start =  1,
-            length =  2,
-            bound =  primer_bound,
-            tm =  primer_tm,
-            gc =  primer_gc,
-            penalty =  round(primer_penalty,1),
-            self_any_th =  PRIMER_SELF_ANY_TH,
-            self_end_th =  PRIMER_MAX_SELF_END_TH,
-            hairpin_th =  PRIMER_MAX_HAIRPIN_TH,
-            end_stability = PRIMER_END_STABILITY,
-            engine = "custom"
-        )
-
-        good_primers.append(good_primer)
+        # Save good primers
+        good_primers.append(primer)
 
     # Text-based summary of the design process, only use non-zero criteria.
     eval_string = (f"considered: {primers_considered}, ")
