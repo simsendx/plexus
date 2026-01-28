@@ -4,7 +4,7 @@ import pandas as pd
 from loguru import logger
 
 
-def write_fasta_from_dict(input_dt, output_fasta):
+def write_fasta_from_dict(input_dt: dict, output_fasta: str) -> None:
     """
     Write a `.fasta` file to `output_fasta` from an input dictionary
     `input_dt`
@@ -34,7 +34,7 @@ def gc_content(sequence: str) -> float:
     return (gc_count / len(sequence)) * 100
 
 
-def reverse_complement(dna):
+def reverse_complement(dna: str) -> str:
     """
     Returns the reverse complement of a DNA sequence.
 
@@ -57,7 +57,7 @@ def reverse_complement(dna):
 
 
 # Convert different sections to DataFrames
-def convert_primer_data_to_tables(data):
+def convert_primer_data_to_tables(data: dict) -> dict:
     tables = {}
 
     # 1. Primer Pairs Summary

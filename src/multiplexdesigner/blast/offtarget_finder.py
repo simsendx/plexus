@@ -140,5 +140,3 @@ class AmpliconFinder:
     def create_offtarget_dataframe(self):
         """Create an offtarget dataframe"""
         self.offtarget_df = self.amplicon_df.query("not (F_expected and R_expected)")
-
-    # def

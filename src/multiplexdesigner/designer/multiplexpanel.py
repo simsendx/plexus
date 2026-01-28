@@ -15,6 +15,7 @@ import pandas as pd
 from Bio import SeqIO
 from loguru import logger
 
+from multiplexdesigner.aligner import PrimerDimerPredictor
 from multiplexdesigner.designer.primer import PrimerPair
 from multiplexdesigner.utils.root_dir import ROOT_DIR
 from multiplexdesigner.utils.utils import write_fasta_from_dict
@@ -123,8 +124,9 @@ class Junction:
         n_too_short = 0
         n_too_long = 0
         primer_tm_diff_too_large = 0
-        primer_dimer_too_stable = 0
-        primer_three_prime_too_stable = 0
+
+        # Initialize dimer predictor once per junction
+        dimer_predictor = PrimerDimerPredictor()
 
         for left_primer in left_sorted:
             for right_primer in right_sorted:
@@ -171,11 +173,15 @@ class Junction:
                     pair_id=f"{left_primer.name}_{right_primer.name}",
                 )
 
-                # TODO: Calculate the thermodyanamics of primer-to-primer binding in each pair. This can also be
-                # done at the primer pair selection step? Should these be calculated here?
-
-                # logger.info(f"Left seq: {left_primer.seq}; Right seq: {right_primer.seq}")
-                # logger.info(f"Left penalty: {left_primer.penalty}; Right penalty: {right_primer.penalty}")
+                # Calculate cross-dimer score
+                dimer_predictor.set_primers(
+                    left_primer.seq,
+                    right_primer.seq,
+                    left_primer.name,
+                    right_primer.name,
+                )
+                dimer_predictor.align()
+                pair.dimer_score = dimer_predictor.score
 
                 # Calculate primer pair penalty (similar to primer3)
                 pair.pair_penalty = pair.calculate_primer_pair_penalty_th(
@@ -198,9 +204,6 @@ class Junction:
         )
         logger.info(
             f"Amplicon too short: {n_too_short}; Amplicon too long: {n_too_long}; Primer Tm difference larger than {max_primer_tm_difference}: {primer_tm_diff_too_large}"
-        )
-        logger.info(
-            f"Primer dimers too stable: {primer_dimer_too_stable}; 3'-ends too stable: {primer_three_prime_too_stable}"
         )
 
         return valid_pairs
