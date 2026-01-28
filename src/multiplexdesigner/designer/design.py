@@ -10,8 +10,9 @@ import os
 import warnings
 
 import primer3
+from loguru import logger
 
-from multiplexdesigner.designer.multiplexpanel import PrimerDesigns
+from multiplexdesigner.designer.multiplexpanel import MultiplexPanel, PrimerDesigns
 from multiplexdesigner.designer.thal import (
     calculate_single_primer_thermodynamics,
     calculate_single_primer_thermodynamics_parallel,
@@ -23,26 +24,27 @@ from multiplexdesigner.utils.utils import generate_kmers, reverse_complement
 # ================================================================================
 
 
-# TODO: All designer options (custom, primer3py, primer3) should return data in the same
-# format for downstream processing.
-def design_primers(multiplexpanel, method: str = "simsen", parallel: bool = False):
+def design_primers(
+    panel: MultiplexPanel, method: str = "simsen", parallel: bool = False
+) -> MultiplexPanel:
     """
     Wrapper function to call the various design algorithms.
 
     Args:
-        multiplexpanel: An instantiated MultiplexPanel object created with the
-        panel_factory function. method: Design algorithm to use; defaults to "simsen".
+        panel: An instantiated MultiplexPanel object created with panel_factory.
+        method: Design algorithm to use; defaults to "simsen".
         parallel: Boolean. If true, uses parallelized functions. Default is False.
 
     Returns:
         A MultiplexPanel object with primer designs.
     """
     if method == "simsen":
-        return design_multiplex_primers(multiplexpanel, parallel=parallel)
+        return design_multiplex_primers(panel, parallel=parallel)
     if method == "primer3py":
-        return primer3py_design_primers(multiplexpanel)
+        return primer3py_design_primers(panel)
     if method == "primer3":
-        return primer3_design_primers(multiplexpanel)
+        return primer3_design_primers(panel)
+    raise ValueError(f"Unknown design method: {method}")
 
 
 # ================================================================================
@@ -50,12 +52,14 @@ def design_primers(multiplexpanel, method: str = "simsen", parallel: bool = Fals
 # ================================================================================
 
 
-def design_multiplex_primers(multiplexpanel, parallel: bool = False):
+def design_multiplex_primers(
+    panel: MultiplexPanel, parallel: bool = False
+) -> MultiplexPanel:
     """
     A function that picks individual primers left and right of the provided junctions.
 
     Args:
-        multiplexpanel - A MultiPlex Panel object with loaded junctions
+        panel: A MultiplexPanel object with loaded junctions
 
     Returns:
         A MultiplexPanel object containing the left and right primer designs for each junction.
@@ -64,10 +68,6 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
     # =============================================
     # Common parameters for all junctions
     # =============================================
-
-    # Get logger and panel object
-    panel = multiplexpanel[0]
-    logger = multiplexpanel[1]
 
     # Single primer parameters
     min_primer_length = panel.config["singleplex_design_parameters"][
@@ -144,7 +144,6 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
             kmers = generate_kmers(
                 target_name=junction.name,
                 target_sequence=region,
-                logger=logger,
                 orientation=orientation,
                 position_offset=offset,
                 k_min=min_primer_length,
@@ -176,21 +175,20 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
 
         # Calculate thermodynamic properties of candidate primers and remove low quality primers based on config.
         if parallel:
-            # Run both left and right primers at the same time using
+            # Run both left and right primers at the same time
             left_primers, right_primers = (
                 calculate_single_primer_thermodynamics_parallel(
                     left_kmers=left_kmers,
                     right_kmers=right_kmers,
                     config=panel.config,
-                    logger=logger,
                 )
             )
         else:
             left_primers, left_eval_string = calculate_single_primer_thermodynamics(
-                left_kmers, panel.config, logger, orientation="left"
+                left_kmers, panel.config, orientation="left"
             )
             right_primers, right_eval_string = calculate_single_primer_thermodynamics(
-                right_kmers, panel.config, logger, orientation="right"
+                right_kmers, panel.config, orientation="right"
             )
 
         # TODO: Actually generate table or primers to output
@@ -215,7 +213,6 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
 
         # Find suitable primer pairs from initial designs and calculate primer pair penalties
         junction.primer_pairs = junction.find_primer_pairs(
-            logger=logger,
             min_amplicon_length=min_amplicon_length,
             max_amplicon_length=max_amplicon_length,
             max_primer_tm_difference=max_primer_tm_difference,
@@ -238,16 +235,13 @@ def design_multiplex_primers(multiplexpanel, parallel: bool = False):
 
 
 def primer3py_design_primers(
-    multiplexpanel, thal: int = 1, save_designs: bool = False, outdir: str = None
-):
+    panel: MultiplexPanel, thal: int = 1, save_designs: bool = False, outdir: str = None
+) -> MultiplexPanel:
     """
-    Create a panel object and calculate junctions. Then run primer3 design on the junctions
-    and retain the top primers for each juction.
+    Run primer3 design on the junctions and retain the top primers for each junction.
 
     Returns a MultiplexPanel object.
     """
-    panel = multiplexpanel[0]
-    logger = multiplexpanel[1]
 
     num_expected = panel.config["singleplex_design_parameters"]["PRIMER_NUM_RETURN"]
 
@@ -466,8 +460,8 @@ def primer3py_design_primers(
 # ================================================================================
 
 
-def primer3_design_primers(multiplexpanel):
+def primer3_design_primers(panel: MultiplexPanel) -> MultiplexPanel:
     """
-    Run primer3 locally
+    Run primer3 locally (not implemented)
     """
-    pass
+    raise NotImplementedError("Local primer3 execution not yet implemented")

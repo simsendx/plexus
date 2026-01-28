@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "biopython",
     "ispcr",
+    "loguru",
     "pandas",
     "primer3-py",
     "pydantic",

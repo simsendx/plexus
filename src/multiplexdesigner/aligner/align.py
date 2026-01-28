@@ -19,6 +19,8 @@ import json
 from dataclasses import dataclass, field
 from itertools import product
 
+from loguru import logger
+
 from multiplexdesigner.utils.root_dir import ROOT_DIR
 
 # ================================================================================
@@ -58,7 +60,7 @@ class PrimerDimerPredictor:
     the highest scoring alignment
     """
 
-    def __init__(self, logger, param_path: str = None):
+    def __init__(self, param_path: str = None):
         """
         Initialize the PrimerDimerPredictor aligner.
 
@@ -76,7 +78,7 @@ class PrimerDimerPredictor:
         # Load parameters
         if param_path is None:
             param_path = f"{ROOT_DIR}/config/alignment_parameters.json"
-        self.load_parameters(logger, param_path)
+        self.load_parameters(param_path)
 
     def set_primers(self, primer1, primer2, primer1_name, primer2_name):
         """Set a pair of primers to align"""
@@ -86,7 +88,7 @@ class PrimerDimerPredictor:
         self.primer2_name = primer2_name
         self.score = None
 
-    def load_parameters(self, logger, param_path: str = None):
+    def load_parameters(self, param_path: str = None):
         """
         Load parameters necessary for Primer Dimer algorithm,
         and set as attributes

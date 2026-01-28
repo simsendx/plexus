@@ -150,6 +150,6 @@ class BlastRunner:
 
         with Blast.parse(blast_xml) as blast_records:
             for blast_record in blast_records:
-                print(blast_records)
+                print(blast_record)
 
         return out

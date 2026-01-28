@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 
 import primer3
+from loguru import logger
 
 from multiplexdesigner.utils.utils import gc_content
 
@@ -438,9 +439,7 @@ def seqtm(
         )
 
 
-def calculate_single_primer_thermodynamics(
-    primer_list, config, logger, orientation: str
-):
+def calculate_single_primer_thermodynamics(primer_list, config, orientation: str):
     """
     Function to calculate thermodynamic properties of a list of individual primers.
     Sequence-specific parameters (e.g. GC-content, GC clamp, etc.) are calculated
@@ -764,9 +763,7 @@ def calculate_single_primer_thermodynamics(
     return (good_primers, eval_string)
 
 
-def calculate_single_primer_thermodynamics_parallel(
-    left_kmers, right_kmers, config, logger
-):
+def calculate_single_primer_thermodynamics_parallel(left_kmers, right_kmers, config):
     """
     Multithreaded version of 'calculate_single_primer_thermodynamics'.
     """
@@ -775,11 +772,11 @@ def calculate_single_primer_thermodynamics_parallel(
         max_workers=max(2, multiprocessing.cpu_count() - 2)
     ) as executor:
         # Submit both tasks
-        left_future, left_eval_future = executor.submit(
-            calculate_single_primer_thermodynamics, left_kmers, config, logger
+        left_future = executor.submit(
+            calculate_single_primer_thermodynamics, left_kmers, config, "left"
         )
-        right_future, right_eval_future = executor.submit(
-            calculate_single_primer_thermodynamics, right_kmers, config, logger
+        right_future = executor.submit(
+            calculate_single_primer_thermodynamics, right_kmers, config, "right"
         )
 
-    return left_future.result(), right_future.result()
+        return left_future.result(), right_future.result()

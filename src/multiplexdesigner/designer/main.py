@@ -28,7 +28,7 @@ from multiplexdesigner.designer.multiplexpanel import panel_factory
 from multiplexdesigner.utils.pretty_cli import display_welcome
 
 
-def main(
+def run_designer(
     design_input_file: str = "./data/junctions.csv",
     fasta_file: str = "/Users/ctosimsen/Documents/hg38/hg38.fa",
 ):
@@ -49,4 +49,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    run_designer()

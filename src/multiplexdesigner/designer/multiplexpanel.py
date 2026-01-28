@@ -13,10 +13,10 @@ from datetime import datetime
 
 import pandas as pd
 from Bio import SeqIO
+from loguru import logger
 
 from multiplexdesigner.designer.primer import PrimerPair
 from multiplexdesigner.utils.root_dir import ROOT_DIR
-from multiplexdesigner.utils.utils import setup_logger
 
 # ================================================================================
 # A class to hold primer designs and design metrics.
@@ -85,7 +85,6 @@ class Junction:
 
     def find_primer_pairs(
         self,
-        logger: object,
         min_amplicon_length: int = 40,
         max_amplicon_length: int = 100,
         max_primer_tm_difference: int = 3,
@@ -100,14 +99,10 @@ class Junction:
 
         Args:
             self: A junction object
-            logger: A logger object
-            config: A panel design config
             min_amplicon_length: Minimal length of the entire amplicon, incl. primers.
             max_amplicon_length: Maximal length of the entire amplicon, incl. primers.
             max_primer_tm_difference: Maximum difference in melting temperature between primers.
             product_opt_size: Optimal PCR product size
-            pair_max_compl_any_th: describes the tendency of the left primer to bind to the right primer
-            pair_max_compl_end_th: tries to bind the 3'-END of the left primer to the right primer
 
         Returns:
             A list of tuples with (forward, reverse) primer objects.
@@ -229,7 +224,6 @@ class MultiplexPanel:
 
     def load_config(
         self,
-        logger,
         preset: str = "default",
         config_path: str = None,
         config_dict: dict = None,
@@ -239,7 +233,6 @@ class MultiplexPanel:
 
         Args:
             self: A MultiplexPanel object
-            logger: A logger object
             preset: Which standard config file to use? Either "default" or "lenient".
             config_path: User-provided config from a file. If none is provided, the config is chosen based on the preset value.
             config_dict: User-provided config from a dictionary. If none is provided, the config is chosen based on the preset value.
@@ -267,7 +260,6 @@ class MultiplexPanel:
 
                 warn_msg = f"Preset value `{preset}` must be either 'default' or 'lenient'. Using default instead."
                 logger.warning(warn_msg)
-                raise Warning(warn_msg)
 
             with open(config_path) as f:
                 config = json.load(f)
@@ -275,7 +267,7 @@ class MultiplexPanel:
 
         self.config = config
 
-    def import_junctions_csv(self, file_path: str, logger):
+    def import_junctions_csv(self, file_path: str):
         """Import junctions from CSV file using pandas"""
         try:
             df = pd.read_csv(file_path)
@@ -291,15 +283,12 @@ class MultiplexPanel:
 
             self.junction_df = df.copy()
             self._create_junction_objects_from_df()
-            print(
-                f"Successfully imported {len(self.junctions)} junctions from {file_path}"
-            )
             logger.info(
                 f"Successfully imported {len(self.junctions)} junctions from {file_path}"
             )
 
         except Exception as e:
-            print(f"Error importing CSV file: {e}")
+            logger.error(f"Error importing CSV file: {e}")
             raise
 
     def _create_junction_objects_from_df(self):
@@ -314,17 +303,15 @@ class MultiplexPanel:
             )
             self.junctions.append(junction)
 
-    def merge_close_junctions(self, logger):
+    def merge_close_junctions(self):
         """Merge junctions that are close together based on max_amplicon_gap from config"""
         if not self.junctions or not self.config:
-            print("No junctions to merge or no design config loaded")
             logger.warning("No junctions to merge or no design config loaded")
             return
 
         # Get max_amplicon_length from config (use as merge distance)
         max_amplicon_gap = self.config.get("max_amplicon_length", 100)
 
-        print(f"Merging junctions within {max_amplicon_gap} bp on same chromosome...")
         logger.info(
             f"Merging junctions within {max_amplicon_gap} bp on same chromosome..."
         )
@@ -340,7 +327,6 @@ class MultiplexPanel:
             # Fallback to junction objects
             self._merge_junctions_objects(max_amplicon_gap)
 
-        print(f"After merging: {len(self.junctions)} junctions remain")
         logger.info(f"After merging: {len(self.junctions)} junctions remain")
 
     def _merge_junctions_df(self, df: pd.DataFrame, max_gap: int) -> pd.DataFrame:
@@ -409,7 +395,7 @@ class MultiplexPanel:
                 merged_row["Five_Prime_Coordinate"] = min(all_coords)
                 merged_row["Three_Prime_Coordinate"] = max(all_coords)
 
-                print(f"Merged {len(merge_group)} junctions: {merged_name}")
+                logger.debug(f"Merged {len(merge_group)} junctions: {merged_name}")
             else:
                 merged_row = current_row
 
@@ -482,26 +468,18 @@ class MultiplexPanel:
 
         return Junction(merged_name, chrom, merged_five_prime, merged_three_prime)
 
-    def extract_design_regions_from_fasta(
-        self, fasta_file: str, logger, padding: int = 200
-    ):
+    def extract_design_regions_from_fasta(self, fasta_file: str, padding: int = 200):
         """
         Extract genomic sequences for design regions with padding from FASTA file.
 
         Args:
-            self:
-            fasta_file: str
-            logger: logging.getLogger() object
-            padding: int = 200
+            fasta_file: Path to the FASTA file
+            padding: Number of bases to pad on each side of the junction
 
         Return:
-            Junction object
+            None (modifies junction objects in place)
         """
-
         logger.info(
-            f"Extracting design regions from {fasta_file} with {padding}bp padding..."
-        )
-        print(
             f"Extracting design regions from {fasta_file} with {padding}bp padding..."
         )
 
@@ -527,9 +505,8 @@ class MultiplexPanel:
                 regions_extracted += 1
 
             except Exception as e:
-                print(f"Error extracting region for {junction.name}: {e}")
+                logger.error(f"Error extracting region for {junction.name}: {e}")
 
-        print(f"Successfully extracted {regions_extracted} design regions")
         logger.info(f"Successfully extracted {regions_extracted} design regions")
 
     def seqio_extract_genomic_sequence(
@@ -548,7 +525,7 @@ class MultiplexPanel:
     def calculate_junction_coordinates_in_design_region(self):
         """Calculate junction coordinates within design regions with proper logic"""
         if not self.config:
-            print("Warning: No design config loaded, using default padding of 3bp")
+            logger.warning("No design config loaded, using default padding of 3bp")
             padding = 3
         else:
             padding = self.config.get("junction_padding_bases", 3)
@@ -557,7 +534,7 @@ class MultiplexPanel:
 
         for junction in self.junctions:
             if junction.design_region is None or junction.design_start is None:
-                print(f"Warning: No design region found for {junction.name}")
+                logger.warning(f"No design region found for {junction.name}")
                 continue
 
             try:
@@ -590,16 +567,18 @@ class MultiplexPanel:
 
                 # Verify the calculation makes sense
                 if jmin_coordinate >= jmax_coordinate:
-                    print(f"Warning: Invalid junction coordinates for {junction.name}")
+                    logger.warning(f"Invalid junction coordinates for {junction.name}")
 
             except Exception as e:
-                print(f"Error calculating coordinates for {junction.name}: {e}")
+                logger.error(f"Error calculating coordinates for {junction.name}: {e}")
 
-        print(f"Calculated junction coordinates for {coordinates_calculated} junctions")
+        logger.info(
+            f"Calculated junction coordinates for {coordinates_calculated} junctions"
+        )
 
     def verify_junction_coordinates(self):
         """Verify that junction coordinate calculations make sense"""
-        print("\nVerifying junction coordinates...")
+        logger.info("Verifying junction coordinates...")
 
         for junction in self.junctions:
             if all(
@@ -611,15 +590,15 @@ class MultiplexPanel:
                     junction.design_start,
                 ]
             ):
-                print(f"\nJunction: {junction.name}")
-                print(
+                logger.debug(f"Junction: {junction.name}")
+                logger.debug(
                     f"Genomic coordinates: {junction.chrom}:{junction.start}-{junction.end}"
                 )
-                print(
+                logger.debug(
                     f"Design region: {junction.chrom}:{junction.design_start}-{junction.design_end}"
                 )
-                print(f"Design region length: {junction.junction_length}")
-                print(
+                logger.debug(f"Design region length: {junction.junction_length}")
+                logger.debug(
                     f"Junction in design region: {junction.jmin_coordinate}-{junction.jmax_coordinate}"
                 )
 
@@ -633,11 +612,13 @@ class MultiplexPanel:
                     junction_seq = junction.design_region[
                         junction.jmin_coordinate : junction.jmax_coordinate + 1
                     ]
-                    print(f"Junction sequence: {junction_seq[:50]}...")
+                    logger.debug(f"Junction sequence: {junction_seq[:50]}...")
                 else:
-                    print("Warning: Junction coordinates out of bounds!")
+                    logger.warning(
+                        f"Junction coordinates out of bounds for {junction.name}!"
+                    )
 
-        print("\nCoordinate verification complete.")
+        logger.info("Coordinate verification complete.")
 
     def create_junction_table(self) -> pd.DataFrame:
         """
@@ -673,13 +654,12 @@ class MultiplexPanel:
         self.junction_df = pd.DataFrame(data)
         return self.junction_df
 
-    def write_junctions_to_csv(self, file_path: str, logger):
+    def write_junctions_to_csv(self, file_path: str):
         """
         Write the junctions from the MultiplexPanel object to a CSV file.
 
         Args:
             file_path (str): Path to the output CSV file.
-            logger: Logger object for logging messages.
 
         Raises:
             ValueError: If no junctions are available or if the file path is invalid.
@@ -721,16 +701,13 @@ class MultiplexPanel:
         # Write the DataFrame to a CSV file
         try:
             junction_df.to_csv(file_path, index=False)
-            info_msg = f"Junctions successfully written to {file_path}"
-            logger.info(info_msg)
-            print(info_msg)
+            logger.info(f"Junctions successfully written to {file_path}")
         except Exception as e:
             error_msg = f"Failed to write junctions to {file_path}: {e}"
             logger.error(error_msg)
             raise OSError(error_msg)
 
 
-# Initialise MultiplexPanel object and a logger
 def panel_factory(
     name: str,
     genome: str,
@@ -739,37 +716,35 @@ def panel_factory(
     preset: str = "default",
     config_file: str = None,
     padding: int = 200,
-):
+) -> "MultiplexPanel":
     """
-    Set up the logger, load the configuration, create and configure the panel,
-    and prepare it for primer design.
+    Create and configure a MultiplexPanel ready for primer design.
 
     Args:
         name: Required. Name of the panel.
         genome: Required. Name of the reference genome to pull.
         design_input_file: Required. Samplesheet containing junction around which to design primers.
         fasta_file: Required. Reference fasta file.
+        preset: Optional. Which preset configuration to use ("default" or "lenient").
         config_file: Optional. Configuration file to use, otherwise uses the default config.
         padding: Optional. How many bases around the junction should be extracted for the design region? Default is 200.
 
     Returns:
-        A tuple: (logger, panel)
+        A configured MultiplexPanel object.
     """
-    logger = setup_logger()
+    logger.info(f"Creating multiplex panel: {name}")
 
     # Create and configure the multiplex panel object
     panel = MultiplexPanel(name, genome)
 
     # Load config file. This handles defaults internally if none is provided by the user.
     # User provided configs overwrite all defaults.
-    # TODO: Add checks for user provided configs.
-    # TODO: Allow user to provide subconfigs only, which overwrite only the specified parameters
-    panel.load_config(logger=logger, preset=preset, config_path=config_file)
+    panel.load_config(preset=preset, config_path=config_file)
 
     # Retrieve design regions and calculate junctions
-    panel.import_junctions_csv(file_path=design_input_file, logger=logger)
-    panel.merge_close_junctions(logger=logger)
-    panel.extract_design_regions_from_fasta(fasta_file, logger=logger, padding=padding)
+    panel.import_junctions_csv(file_path=design_input_file)
+    panel.merge_close_junctions()
+    panel.extract_design_regions_from_fasta(fasta_file, padding=padding)
     panel.calculate_junction_coordinates_in_design_region()
 
-    return panel, logger
+    return panel

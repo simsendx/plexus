@@ -1,11 +1,9 @@
-import logging
 import warnings
-from datetime import datetime
 
 import pandas as pd
+from loguru import logger
 
 
-# TODO: Implement fasta conversion of primer sequences for BLAST input
 def write_fasta_from_dict(input_dt, output_fasta):
     """
     Write a `.fasta` file to `output_fasta` from an input dictionary
@@ -16,21 +14,6 @@ def write_fasta_from_dict(input_dt, output_fasta):
         for header, seq in input_dt.items():
             fasta.write(f">{header}\n")
             fasta.write(f"{seq}\n")
-
-
-def setup_logger():
-    # Create a timestamp for the log file
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_filename = f"multiplexdesigner_{timestamp}.log"
-
-    # Configure the logger
-    logging.basicConfig(
-        filename=log_filename,
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-
-    return logging.getLogger()
 
 
 def gc_content(sequence: str) -> float:
@@ -156,7 +139,6 @@ def create_primer_dataframe(primer_data):
             "left_self_end_th": primer_data.get(f"PRIMER_LEFT_{i}_SELF_END_TH"),
             "left_hairpin_th": primer_data.get(f"PRIMER_LEFT_{i}_HAIRPIN_TH"),
             "left_end_stability": primer_data.get(f"PRIMER_LEFT_{i}_END_STABILITY"),
-            ""
             # Right primer info
             "right_sequence": primer_data.get(f"PRIMER_RIGHT_{i}_SEQUENCE"),
             "right_coords": primer_data.get(f"PRIMER_RIGHT_{i}"),
@@ -183,7 +165,6 @@ def create_primer_dataframe(primer_data):
 def generate_kmers(
     target_name: str,
     target_sequence: str,
-    logger: object,
     orientation: str,
     position_offset: int = 0,
     k_min: int = 18,
@@ -200,10 +181,10 @@ def generate_kmers(
         target_name - Name of the target region, will be used for naming candidate primers
         target_sequence - Region from which to extract kmers
         orientation - Either forward or reverse
-        position_offest: By how much is target_sequence shifted from the origial template sequence?
+        position_offset: By how much is target_sequence shifted from the original template sequence?
         k_min - Minimum length of kmers
         k_max - Maximum length of kmers
-        max_poly_X - Max number of times a base can occur in a row, .e.g AAAAA
+        max_poly_X - Max number of times a base can occur in a row, e.g. AAAAA
         max_N - Max times N bases can occur anywhere in the kmer
         min_gc - Minimum GC content of kmer
         max_gc - Maximum GC content of kmer

@@ -139,24 +139,6 @@ class PrimerPair:
         return penalty
 
 
-# TODO: deprecated?
-@dataclass
-class Primer3:
-    """Class to represent primer3 output"""
-
-    panel_name: str
-    junction_name: str
-    chrom: str
-    five_prime: int
-    three_prime: int
-    design_region: str = None
-    design_start: int = None
-    design_end: int = None
-    primer_pairs_table: object = None
-    left_primer_table: object = None
-    right_primer_table: object = None
-
-
 # TODO: import primer pairs from primer3 output. Wouldn't it be better to design
 # forward and reverse primers separately instead of in pairs, and only consider pairing
 # while also checking for primer dimers?
