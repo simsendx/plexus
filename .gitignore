@@ -9,7 +9,7 @@ __pycache__/
 *.DS_STORE
 .out/
 
-CLAUDE.md   
+CLAUDE.md
 GEMINI.md
 
 # Distribution / packaging

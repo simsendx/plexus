@@ -47,9 +47,7 @@ class PipelineResult:
     @property
     def num_primer_pairs(self) -> int:
         """Total number of primer pairs across all junctions."""
-        return sum(
-            len(j.primer_pairs) for j in self.panel.junctions if j.primer_pairs
-        )
+        return sum(len(j.primer_pairs) for j in self.panel.junctions if j.primer_pairs)
 
 
 def run_pipeline(
@@ -171,7 +169,9 @@ def run_pipeline(
         total_pairs = sum(
             len(j.primer_pairs) for j in panel.junctions if j.primer_pairs
         )
-        logger.info(f"Designed {total_pairs} primer pairs across {len(panel.junctions)} junctions")
+        logger.info(
+            f"Designed {total_pairs} primer pairs across {len(panel.junctions)} junctions"
+        )
     except Exception as e:
         logger.error(f"Primer design failed: {e}")
         result.errors.append(f"Primer design failed: {e}")

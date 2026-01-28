@@ -7,11 +7,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
-
 from multiplexdesigner.cli import app
 from multiplexdesigner.pipeline import PipelineResult
 from multiplexdesigner.version import __version__
+from typer.testing import CliRunner
 
 runner = CliRunner()
 
@@ -54,7 +53,9 @@ class TestRunCommand:
     def test_run_missing_input(self):
         """Test that run fails without --input."""
         result = runner.invoke(app, ["run", "--fasta", "genome.fa"])
-        assert result.exit_code == 2  # Typer uses exit code 2 for missing required options
+        assert (
+            result.exit_code == 2
+        )  # Typer uses exit code 2 for missing required options
         assert "Missing option" in result.output or "--input" in result.output
 
     def test_run_missing_fasta(self):
@@ -81,7 +82,9 @@ class TestRunCommand:
                 ],
             )
             assert result.exit_code == 1
-            assert "not found" in result.output.lower() or "error" in result.output.lower()
+            assert (
+                "not found" in result.output.lower() or "error" in result.output.lower()
+            )
         finally:
             Path(fasta_path).unlink()
 
@@ -103,7 +106,9 @@ class TestRunCommand:
                 ],
             )
             assert result.exit_code == 1
-            assert "not found" in result.output.lower() or "error" in result.output.lower()
+            assert (
+                "not found" in result.output.lower() or "error" in result.output.lower()
+            )
         finally:
             Path(csv_path).unlink()
 
@@ -332,7 +337,9 @@ class TestRunCommand:
             )
 
             assert result.exit_code == 1
-            assert "failed" in result.output.lower() or "crashed" in result.output.lower()
+            assert (
+                "failed" in result.output.lower() or "crashed" in result.output.lower()
+            )
         finally:
             Path(csv_path).unlink()
             Path(fasta_path).unlink()

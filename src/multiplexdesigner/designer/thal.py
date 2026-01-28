@@ -623,9 +623,15 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
 
         # Optimal values
         PRIMER_OPT_SIZE = singleplex.PRIMER_OPT_SIZE
-        PRIMER_OPT_TM = singleplex.PRIMER_OPT_TM  # does not count if PRIMER_WT_TM_GT and PRIMER_WT_TM_LT are 0
-        PRIMER_OPT_BOUND = singleplex.PRIMER_OPT_BOUND  # does not count if PRIMER_WT_BOUND_GT and PRIMER_WT_BOUND_LT are 0
-        PRIMER_OPT_GC_PERCENT = singleplex.PRIMER_OPT_GC_PERCENT  # does not count if PRIMER_WT_GC_PERCENT_GT and PRIMER_WT_GC_PERCENT_LT are 0
+        PRIMER_OPT_TM = (
+            singleplex.PRIMER_OPT_TM
+        )  # does not count if PRIMER_WT_TM_GT and PRIMER_WT_TM_LT are 0
+        PRIMER_OPT_BOUND = (
+            singleplex.PRIMER_OPT_BOUND
+        )  # does not count if PRIMER_WT_BOUND_GT and PRIMER_WT_BOUND_LT are 0
+        PRIMER_OPT_GC_PERCENT = (
+            singleplex.PRIMER_OPT_GC_PERCENT
+        )  # does not count if PRIMER_WT_GC_PERCENT_GT and PRIMER_WT_GC_PERCENT_LT are 0
 
         # Primer penalty weights
         PRIMER_WT_SIZE_LT = singleplex.PRIMER_WT_SIZE_LT

@@ -165,7 +165,9 @@ def run(
             console.print(f"  Output:       {result.output_dir}")
         else:
             console.print()
-            console.print("[bold yellow]Pipeline completed with warnings:[/bold yellow]")
+            console.print(
+                "[bold yellow]Pipeline completed with warnings:[/bold yellow]"
+            )
             for error in result.errors:
                 console.print(f"  [yellow]• {error}[/yellow]")
 

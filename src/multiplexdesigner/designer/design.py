@@ -87,7 +87,9 @@ def design_multiplex_primers(
     min_region_length = 2 * max_primer_length
 
     # Primer pair parameters
-    min_amplicon_length = pair_params.PRIMER_PRODUCT_MIN_INSERT_SIZE + 2 * min_primer_length
+    min_amplicon_length = (
+        pair_params.PRIMER_PRODUCT_MIN_INSERT_SIZE + 2 * min_primer_length
+    )
     max_amplicon_length = pair_params.PRIMER_PRODUCT_MAX_SIZE
     max_primer_tm_difference = pair_params.PRIMER_PAIR_MAX_DIFF_TM
     pair_product_opt_size = pair_params.PRIMER_PRODUCT_OPT_SIZE
@@ -167,12 +169,13 @@ def design_multiplex_primers(
         # Calculate thermodynamic properties of candidate primers and remove low quality primers based on config.
         if parallel:
             # Run both left and right primers at the same time
-            left_primers, right_primers = (
-                calculate_single_primer_thermodynamics_parallel(
-                    left_kmers=left_kmers,
-                    right_kmers=right_kmers,
-                    config=panel.config,
-                )
+            (
+                left_primers,
+                right_primers,
+            ) = calculate_single_primer_thermodynamics_parallel(
+                left_kmers=left_kmers,
+                right_kmers=right_kmers,
+                config=panel.config,
             )
         else:
             left_primers, left_eval_string = calculate_single_primer_thermodynamics(
@@ -363,7 +366,9 @@ def primer3py_design_primers(
             logger.warning(
                 f"No suitable primer pairs found for junction: {junction.name}"
             )
-            tm_range = f"Tm range: {singleplex.PRIMER_MIN_TM} - {singleplex.PRIMER_MAX_TM}"
+            tm_range = (
+                f"Tm range: {singleplex.PRIMER_MIN_TM} - {singleplex.PRIMER_MAX_TM}"
+            )
             logger.info(f"{tm_range}. Consider increasing the Tm range.")
         elif junction.primer3_designs["PRIMER_PAIR_NUM_RETURNED"] < num_expected:
             logger.warning(f"Fewer primer pairs found than desired: {num_expected}")

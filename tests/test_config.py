@@ -7,8 +7,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
 from multiplexdesigner.config import (
     DesignerConfig,
     MultiplexPickerParameters,
@@ -19,6 +17,7 @@ from multiplexdesigner.config import (
     ThermodynamicTable,
     load_config,
 )
+from pydantic import ValidationError
 
 
 class TestSingleplexDesignParameters:
@@ -144,7 +143,9 @@ class TestPCRConditions:
         conditions = PCRConditions()
         assert conditions.annealing_temperature == 60.0
         assert conditions.primer_concentration == 50.0
-        assert conditions.salt_correction_formula == SaltCorrectionFormula.SANTALUCIA1998
+        assert (
+            conditions.salt_correction_formula == SaltCorrectionFormula.SANTALUCIA1998
+        )
         assert conditions.thermodynamic_table == ThermodynamicTable.SANTALUCIA1998
 
     def test_enum_values(self):
@@ -270,9 +271,7 @@ class TestDesignerConfig:
             "multiplex_picker_parameters": {},
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_path = f.name
 
@@ -310,9 +309,7 @@ class TestDesignerConfig:
         """Test saving config to JSON file."""
         config = DesignerConfig()
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             temp_path = f.name
 
         try:
@@ -377,9 +374,7 @@ class TestLoadConfig:
             "singleplex_design_parameters": {"PRIMER_OPT_TM": 63.0},
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_path = f.name
 
@@ -393,9 +388,7 @@ class TestLoadConfig:
         """Test that config_dict takes priority over config_path."""
         config_data = {"singleplex_design_parameters": {"PRIMER_OPT_TM": 59.0}}
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_path = f.name
 
@@ -413,9 +406,7 @@ class TestLoadConfig:
         """Test that config_path takes priority over preset."""
         config_data = {"singleplex_design_parameters": {"PRIMER_OPT_TM": 63.0}}
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             temp_path = f.name
 
