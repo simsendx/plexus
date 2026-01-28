@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+
 from multiplexdesigner.config import (
     DesignerConfig,
     MultiplexPickerParameters,
@@ -17,7 +19,6 @@ from multiplexdesigner.config import (
     ThermodynamicTable,
     load_config,
 )
-from pydantic import ValidationError
 
 
 class TestSingleplexDesignParameters:

@@ -7,10 +7,11 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from typer.testing import CliRunner
+
 from multiplexdesigner.cli import app
 from multiplexdesigner.pipeline import PipelineResult
 from multiplexdesigner.version import __version__
-from typer.testing import CliRunner
 
 runner = CliRunner()
 
