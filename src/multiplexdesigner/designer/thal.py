@@ -471,24 +471,20 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
     self_hairpin = 0
     primer_3prime_too_stable = 0
 
-    max_tm = config["singleplex_design_parameters"]["PRIMER_MAX_TM"]
-    min_tm = config["singleplex_design_parameters"]["PRIMER_MIN_TM"]
+    # Get config sections for easier access
+    singleplex = config.singleplex_design_parameters
+    pcr = config.pcr_conditions
 
-    max_bound = config["singleplex_design_parameters"]["PRIMER_MAX_BOUND"]
-    min_bound = config["singleplex_design_parameters"]["PRIMER_MIN_BOUND"]
+    max_tm = singleplex.PRIMER_MAX_TM
+    min_tm = singleplex.PRIMER_MIN_TM
 
-    primer_max_hairpin_tm = config["singleplex_design_parameters"][
-        "PRIMER_MAX_HAIRPIN_TH"
-    ]
-    primer_max_self_any = config["singleplex_design_parameters"][
-        "PRIMER_MAX_SELF_ANY_TH"
-    ]
-    primer_max_self_end = config["singleplex_design_parameters"][
-        "PRIMER_MAX_SELF_END_TH"
-    ]
-    primer_max_end_stability = config["singleplex_design_parameters"][
-        "PRIMER_MAX_END_STABILITY"
-    ]
+    max_bound = singleplex.PRIMER_MAX_BOUND
+    min_bound = singleplex.PRIMER_MIN_BOUND
+
+    primer_max_hairpin_tm = singleplex.PRIMER_MAX_HAIRPIN_TH
+    primer_max_self_any = singleplex.PRIMER_MAX_SELF_ANY_TH
+    primer_max_self_end = singleplex.PRIMER_MAX_SELF_END_TH
+    primer_max_end_stability = singleplex.PRIMER_MAX_END_STABILITY
 
     good_primers = []
 
@@ -503,14 +499,14 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
         oligo_calc = primer3.thermoanalysis.ThermoAnalysis()
 
         oligo_calc.set_thermo_args(
-            mv_conc=config["pcr_conditions"]["mv_concentration"],
-            dv_conc=config["pcr_conditions"]["dv_concentration"],
-            dntp_conc=config["pcr_conditions"]["dntp_concentration"],
-            dna_conc=config["pcr_conditions"]["primer_concentration"],
-            dmso_conc=config["pcr_conditions"]["dmso_concentration"],
-            dmso_fact=config["pcr_conditions"]["dmso_fact"],
-            formamide_conc=config["pcr_conditions"]["formamide_concentration"],
-            annealing_temp_c=config["pcr_conditions"]["annealing_temperature"],
+            mv_conc=pcr.mv_concentration,
+            dv_conc=pcr.dv_concentration,
+            dntp_conc=pcr.dntp_concentration,
+            dna_conc=pcr.primer_concentration,
+            dmso_conc=pcr.dmso_concentration,
+            dmso_fact=pcr.dmso_fact,
+            formamide_conc=pcr.formamide_concentration,
+            annealing_temp_c=pcr.annealing_temperature,
             temp_c=37.0,
             max_nn_length=60,
             max_loop=30,
@@ -523,10 +519,8 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
 
         # Sanity check primer size, these should have been handeled elsewhere already
         primer_length = len(primer.seq)
-        if (
-            primer_length > config["singleplex_design_parameters"]["primer_max_length"]
-        ) or (
-            primer_length < config["singleplex_design_parameters"]["primer_min_length"]
+        if (primer_length > singleplex.primer_max_length) or (
+            primer_length < singleplex.primer_min_length
         ):
             raise ValueError(
                 f"Primer length of {primer_length} does not match thresholds."
@@ -534,22 +528,22 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
 
         # Sanity check: PRIMER_MAX_GC and PRIMER_MIN_GC
         primer_gc = gc_content(primer.seq)
-        if (primer_gc > config["singleplex_design_parameters"]["primer_max_gc"]) or (
-            primer_gc < config["singleplex_design_parameters"]["primer_min_gc"]
+        if (primer_gc > singleplex.primer_max_gc) or (
+            primer_gc < singleplex.primer_min_gc
         ):
             raise ValueError(f"GC-content of {primer_gc} does not match thresholds.")
 
         # Primer Melting temperature and amount bound
         tm_bound = seqtm(
             seq=primer.seq,
-            salt_conc=config["pcr_conditions"]["mv_concentration"],
-            divalent_conc=config["pcr_conditions"]["dv_concentration"],
-            dntp_conc=config["pcr_conditions"]["dntp_concentration"],
-            dna_conc=config["pcr_conditions"]["primer_concentration"],
-            dmso_conc=config["pcr_conditions"]["dmso_concentration"],
-            dmso_fact=config["pcr_conditions"]["dmso_fact"],
-            formamide_conc=config["pcr_conditions"]["formamide_concentration"],
-            annealing_temp=config["pcr_conditions"]["annealing_temperature"],
+            salt_conc=pcr.mv_concentration,
+            divalent_conc=pcr.dv_concentration,
+            dntp_conc=pcr.dntp_concentration,
+            dna_conc=pcr.primer_concentration,
+            dmso_conc=pcr.dmso_concentration,
+            dmso_fact=pcr.dmso_fact,
+            formamide_conc=pcr.formamide_concentration,
+            annealing_temp=pcr.annealing_temperature,
         )
         primer_tm = round(tm_bound.Tm, 1)
         primer_bound = round(tm_bound.bound, 1)
@@ -628,46 +622,24 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
         # ==============================================================================
 
         # Optimal values
-        PRIMER_OPT_SIZE = config["singleplex_design_parameters"]["PRIMER_OPT_SIZE"]
-        PRIMER_OPT_TM = config["singleplex_design_parameters"][
-            "PRIMER_OPT_TM"
-        ]  # does not count if PRIMER_WT_TM_GT and PRIMER_WT_TM_LT are 0
-        PRIMER_OPT_BOUND = config["singleplex_design_parameters"][
-            "PRIMER_OPT_BOUND"
-        ]  # does not count if PRIMER_WT_BOUND_GT and PRIMER_WT_BOUND_LT are 0
-        PRIMER_OPT_GC_PERCENT = config["singleplex_design_parameters"][
-            "PRIMER_OPT_GC_PERCENT"
-        ]  # does not count if PRIMER_WT_GC_PERCENT_GT and PRIMER_WT_GC_PERCENT_LT are 0
+        PRIMER_OPT_SIZE = singleplex.PRIMER_OPT_SIZE
+        PRIMER_OPT_TM = singleplex.PRIMER_OPT_TM  # does not count if PRIMER_WT_TM_GT and PRIMER_WT_TM_LT are 0
+        PRIMER_OPT_BOUND = singleplex.PRIMER_OPT_BOUND  # does not count if PRIMER_WT_BOUND_GT and PRIMER_WT_BOUND_LT are 0
+        PRIMER_OPT_GC_PERCENT = singleplex.PRIMER_OPT_GC_PERCENT  # does not count if PRIMER_WT_GC_PERCENT_GT and PRIMER_WT_GC_PERCENT_LT are 0
 
         # Primer penalty weights
-        PRIMER_WT_SIZE_LT = config["singleplex_design_parameters"]["PRIMER_WT_SIZE_LT"]
-        PRIMER_WT_SIZE_GT = config["singleplex_design_parameters"]["PRIMER_WT_SIZE_GT"]
-        PRIMER_WT_TM_GT = config["singleplex_design_parameters"]["PRIMER_WT_TM_GT"]
-        PRIMER_WT_TM_LT = config["singleplex_design_parameters"]["PRIMER_WT_TM_LT"]
-        PRIMER_WT_BOUND_GT = config["singleplex_design_parameters"][
-            "PRIMER_WT_BOUND_GT"
-        ]
-        PRIMER_WT_BOUND_LT = config["singleplex_design_parameters"][
-            "PRIMER_WT_BOUND_LT"
-        ]
-        PRIMER_WT_GC_PERCENT_GT = config["singleplex_design_parameters"][
-            "PRIMER_WT_GC_PERCENT_GT"
-        ]
-        PRIMER_WT_GC_PERCENT_LT = config["singleplex_design_parameters"][
-            "PRIMER_WT_GC_PERCENT_LT"
-        ]
-        PRIMER_WT_SELF_ANY_TH = config["singleplex_design_parameters"][
-            "PRIMER_WT_SELF_ANY_TH"
-        ]
-        PRIMER_WT_SELF_END_TH = config["singleplex_design_parameters"][
-            "PRIMER_WT_SELF_END_TH"
-        ]
-        PRIMER_WT_HAIRPIN_TH = config["singleplex_design_parameters"][
-            "PRIMER_WT_HAIRPIN_TH"
-        ]
-        PRIMER_WT_END_STABILITY = config["singleplex_design_parameters"][
-            "PRIMER_WT_END_STABILITY"
-        ]
+        PRIMER_WT_SIZE_LT = singleplex.PRIMER_WT_SIZE_LT
+        PRIMER_WT_SIZE_GT = singleplex.PRIMER_WT_SIZE_GT
+        PRIMER_WT_TM_GT = singleplex.PRIMER_WT_TM_GT
+        PRIMER_WT_TM_LT = singleplex.PRIMER_WT_TM_LT
+        PRIMER_WT_BOUND_GT = singleplex.PRIMER_WT_BOUND_GT
+        PRIMER_WT_BOUND_LT = singleplex.PRIMER_WT_BOUND_LT
+        PRIMER_WT_GC_PERCENT_GT = singleplex.PRIMER_WT_GC_PERCENT_GT
+        PRIMER_WT_GC_PERCENT_LT = singleplex.PRIMER_WT_GC_PERCENT_LT
+        PRIMER_WT_SELF_ANY_TH = singleplex.PRIMER_WT_SELF_ANY_TH
+        PRIMER_WT_SELF_END_TH = singleplex.PRIMER_WT_SELF_END_TH
+        PRIMER_WT_HAIRPIN_TH = singleplex.PRIMER_WT_HAIRPIN_TH
+        PRIMER_WT_END_STABILITY = singleplex.PRIMER_WT_END_STABILITY
 
         tm_adjusted = primer_tm - 5
 

@@ -73,43 +73,30 @@ def design_multiplex_primers(
     # Common parameters for all junctions
     # =============================================
 
+    # Get config sections for easier access
+    singleplex = panel.config.singleplex_design_parameters
+    pair_params = panel.config.primer_pair_parameters
+
     # Single primer parameters
-    min_primer_length = panel.config["singleplex_design_parameters"][
-        "primer_min_length"
-    ]
-    max_primer_length = panel.config["singleplex_design_parameters"][
-        "primer_max_length"
-    ]
-    max_poly_X = panel.config["singleplex_design_parameters"]["primer_max_poly_x"]
-    max_N = panel.config["singleplex_design_parameters"]["primer_max_n"]
-    min_gc = panel.config["singleplex_design_parameters"]["primer_min_gc"]
-    max_gc = panel.config["singleplex_design_parameters"]["primer_max_gc"]
+    min_primer_length = singleplex.primer_min_length
+    max_primer_length = singleplex.primer_max_length
+    max_poly_X = singleplex.primer_max_poly_x
+    max_N = singleplex.primer_max_n
+    min_gc = singleplex.primer_min_gc
+    max_gc = singleplex.primer_max_gc
     min_region_length = 2 * max_primer_length
 
     # Primer pair parameters
-    min_amplicon_length = (
-        panel.config["primer_pair_parameters"]["PRIMER_PRODUCT_MIN_INSERT_SIZE"]
-        + 2 * min_primer_length
-    )
-    max_amplicon_length = panel.config["primer_pair_parameters"][
-        "PRIMER_PRODUCT_MAX_SIZE"
-    ]
-    max_primer_tm_difference = panel.config["primer_pair_parameters"][
-        "PRIMER_PAIR_MAX_DIFF_TM"
-    ]
-    pair_product_opt_size = panel.config["primer_pair_parameters"][
-        "PRIMER_PRODUCT_OPT_SIZE"
-    ]
+    min_amplicon_length = pair_params.PRIMER_PRODUCT_MIN_INSERT_SIZE + 2 * min_primer_length
+    max_amplicon_length = pair_params.PRIMER_PRODUCT_MAX_SIZE
+    max_primer_tm_difference = pair_params.PRIMER_PAIR_MAX_DIFF_TM
+    pair_product_opt_size = pair_params.PRIMER_PRODUCT_OPT_SIZE
 
     # Weights for primer pair penalty calculations
-    wt_pr_penalty = panel.config["primer_pair_parameters"]["PRIMER_PAIR_WT_PR_PENALTY"]
-    wt_product_size_gt = panel.config["primer_pair_parameters"][
-        "PRIMER_PAIR_WT_PRODUCT_SIZE_GT"
-    ]
-    wt_product_size_lt = panel.config["primer_pair_parameters"][
-        "PRIMER_PAIR_WT_PRODUCT_SIZE_LT"
-    ]
-    wt_diff_tm = panel.config["primer_pair_parameters"]["PRIMER_PAIR_WT_DIFF_TM"]
+    wt_pr_penalty = pair_params.PRIMER_PAIR_WT_PR_PENALTY
+    wt_product_size_gt = pair_params.PRIMER_PAIR_WT_PRODUCT_SIZE_GT
+    wt_product_size_lt = pair_params.PRIMER_PAIR_WT_PRODUCT_SIZE_LT
+    wt_diff_tm = pair_params.PRIMER_PAIR_WT_DIFF_TM
 
     # =============================================
     # Start designing
@@ -246,18 +233,20 @@ def primer3py_design_primers(
 
     Returns a MultiplexPanel object.
     """
+    # Get config sections for easier access
+    singleplex = panel.config.singleplex_design_parameters
+    pair_params = panel.config.primer_pair_parameters
+    pcr = panel.config.pcr_conditions
 
-    num_expected = panel.config["singleplex_design_parameters"]["PRIMER_NUM_RETURN"]
+    num_expected = singleplex.PRIMER_NUM_RETURN
 
     for junction in panel.junctions:
         min_product_length = (
-            2 * panel.config["singleplex_design_parameters"]["primer_min_length"]
+            2 * singleplex.primer_min_length
             + junction.jmax_coordinate
             - junction.jmin_coordinate
         )
-        max_product_length = panel.config["singleplex_design_parameters"][
-            "max_amplicon_length"
-        ]
+        max_product_length = pair_params.PRIMER_PRODUCT_MAX_SIZE
 
         # Set global design arguments for primer3. For details check the [manual](https://primer3.org/manual.html)
         global_args = {
@@ -266,109 +255,53 @@ def primer3py_design_primers(
             "PRIMER_TM_FORMULA": 1,
             "PRIMER_SALT_CORRECTIONS": 1,
             "PRIMER_NUM_RETURN": num_expected,
-            "PRIMER_OPT_SIZE": panel.config["singleplex_design_parameters"][
-                "PRIMER_OPT_SIZE"
-            ],
-            "PRIMER_MIN_SIZE": panel.config["singleplex_design_parameters"][
-                "primer_min_length"
-            ],
-            "PRIMER_MAX_SIZE": panel.config["singleplex_design_parameters"][
-                "primer_max_length"
-            ],
-            "PRIMER_PRODUCT_OPT_SIZE": panel.config["singleplex_design_parameters"][
-                "PRIMER_PRODUCT_OPT_SIZE"
-            ],
-            "PRIMER_OPT_TM": panel.config["singleplex_design_parameters"][
-                "PRIMER_OPT_TM"
-            ],
-            "PRIMER_MIN_TM": panel.config["singleplex_design_parameters"][
-                "PRIMER_MIN_TM"
-            ],
-            "PRIMER_MAX_TM": panel.config["singleplex_design_parameters"][
-                "PRIMER_MAX_TM"
-            ],
-            "PRIMER_PAIR_MAX_DIFF_TM": panel.config["singleplex_design_parameters"][
-                "primer_pair_max_tm_difference"
-            ],
-            "PRIMER_SALT_MONOVALENT": panel.config["pcr_conditions"][
-                "mv_concentration"
-            ],
-            "PRIMER_SALT_DIVALENT": panel.config["pcr_conditions"]["dv_concentration"],
-            "PRIMER_DNA_CONC": panel.config["pcr_conditions"]["primer_concentration"],
-            "PRIMER_DNTP_CONC": panel.config["pcr_conditions"]["dntp_concentration"],
-            "PRIMER_DMSO_CONC": panel.config["pcr_conditions"]["dmso_concentration"],
-            "PRIMER_FORMAMIDE_CONC": panel.config["pcr_conditions"][
-                "formamide_concentration"
-            ],
-            "PRIMER_OPT_GC_PERCENT": panel.config["singleplex_design_parameters"][
-                "PRIMER_OPT_GC_PERCENT"
-            ],
-            "PRIMER_MIN_GC": panel.config["singleplex_design_parameters"][
-                "primer_min_gc"
-            ],
-            "PRIMER_MAX_GC": panel.config["singleplex_design_parameters"][
-                "primer_max_gc"
-            ],
-            "PRIMER_GC_CLAMP": 0,
+            "PRIMER_OPT_SIZE": singleplex.PRIMER_OPT_SIZE,
+            "PRIMER_MIN_SIZE": singleplex.primer_min_length,
+            "PRIMER_MAX_SIZE": singleplex.primer_max_length,
+            "PRIMER_PRODUCT_OPT_SIZE": pair_params.PRIMER_PRODUCT_OPT_SIZE,
+            "PRIMER_OPT_TM": singleplex.PRIMER_OPT_TM,
+            "PRIMER_MIN_TM": singleplex.PRIMER_MIN_TM,
+            "PRIMER_MAX_TM": singleplex.PRIMER_MAX_TM,
+            "PRIMER_PAIR_MAX_DIFF_TM": pair_params.PRIMER_PAIR_MAX_DIFF_TM,
+            "PRIMER_SALT_MONOVALENT": pcr.mv_concentration,
+            "PRIMER_SALT_DIVALENT": pcr.dv_concentration,
+            "PRIMER_DNA_CONC": pcr.primer_concentration,
+            "PRIMER_DNTP_CONC": pcr.dntp_concentration,
+            "PRIMER_DMSO_CONC": pcr.dmso_concentration,
+            "PRIMER_FORMAMIDE_CONC": pcr.formamide_concentration,
+            "PRIMER_OPT_GC_PERCENT": singleplex.PRIMER_OPT_GC_PERCENT,
+            "PRIMER_MIN_GC": singleplex.primer_min_gc,
+            "PRIMER_MAX_GC": singleplex.primer_max_gc,
+            "PRIMER_GC_CLAMP": singleplex.primer_gc_clamp,
             "PRIMER_MAX_END_GC": 4,
-            "PRIMER_MAX_END_STABILITY": panel.config["singleplex_design_parameters"][
-                "PRIMER_MAX_END_STABILITY"
-            ],
-            "PRIMER_MAX_POLY_X": panel.config["singleplex_design_parameters"][
-                "primer_max_poly_x"
-            ],
-            "PRIMER_MAX_NS_ACCEPTED": 0,
+            "PRIMER_MAX_END_STABILITY": singleplex.PRIMER_MAX_END_STABILITY,
+            "PRIMER_MAX_POLY_X": singleplex.primer_max_poly_x,
+            "PRIMER_MAX_NS_ACCEPTED": singleplex.primer_max_n,
             "PRIMER_MAX_SELF_ANY": 8.0,
             "PRIMER_MAX_SELF_END": 3.0,
             "PRIMER_PAIR_MAX_COMPL_ANY": 8.0,
             "PRIMER_PAIR_MAX_COMPL_END": 8.0,
-            "PRIMER_MAX_SELF_ANY_TH": panel.config["singleplex_design_parameters"][
-                "PRIMER_MAX_SELF_ANY_TH"
-            ],
-            "PRIMER_MAX_SELF_END_TH": panel.config["singleplex_design_parameters"][
-                "PRIMER_MAX_SELF_END_TH"
-            ],
-            "PRIMER_PAIR_MAX_COMPL_ANY_TH": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_PAIR_MAX_COMPL_ANY_TH"],
-            "PRIMER_PAIR_MAX_COMPL_END_TH": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_PAIR_MAX_COMPL_END_TH"],
-            "PRIMER_MAX_HAIRPIN_TH": panel.config["singleplex_design_parameters"][
-                "PRIMER_MAX_HAIRPIN_TH"
-            ],
-            "PRIMER_MAX_TEMPLATE_MISPRIMING_TH": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_MAX_TEMPLATE_MISPRIMING_TH"],
-            "PRIMER_PAIR_MAX_TEMPLATE_MISPRIMING_TH": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_PAIR_MAX_TEMPLATE_MISPRIMING_TH"],
-            "PRIMER_WT_SIZE_LT": panel.config["singleplex_design_parameters"][
-                "primer_length_penalty"
-            ],
-            "PRIMER_WT_SIZE_GT": panel.config["singleplex_design_parameters"][
-                "primer_length_penalty"
-            ],
-            "PRIMER_WT_GC_PERCENT_LT": panel.config["singleplex_design_parameters"][
-                "PRIMER_WT_GC_PERCENT_LT"
-            ],
-            "PRIMER_WT_GC_PERCENT_GT": panel.config["singleplex_design_parameters"][
-                "PRIMER_WT_GC_PERCENT_GT"
-            ],
+            "PRIMER_MAX_SELF_ANY_TH": singleplex.PRIMER_MAX_SELF_ANY_TH,
+            "PRIMER_MAX_SELF_END_TH": singleplex.PRIMER_MAX_SELF_END_TH,
+            "PRIMER_PAIR_MAX_COMPL_ANY_TH": 47.0,  # Default primer3 value
+            "PRIMER_PAIR_MAX_COMPL_END_TH": 47.0,  # Default primer3 value
+            "PRIMER_MAX_HAIRPIN_TH": singleplex.PRIMER_MAX_HAIRPIN_TH,
+            "PRIMER_MAX_TEMPLATE_MISPRIMING_TH": singleplex.PRIMER_MAX_TEMPLATE_MISPRIMING_TH,
+            "PRIMER_PAIR_MAX_TEMPLATE_MISPRIMING_TH": 70.0,  # Default primer3 value
+            "PRIMER_WT_SIZE_LT": singleplex.PRIMER_WT_SIZE_LT,
+            "PRIMER_WT_SIZE_GT": singleplex.PRIMER_WT_SIZE_GT,
+            "PRIMER_WT_GC_PERCENT_LT": singleplex.PRIMER_WT_GC_PERCENT_LT,
+            "PRIMER_WT_GC_PERCENT_GT": singleplex.PRIMER_WT_GC_PERCENT_GT,
             "PRIMER_WT_SELF_ANY": 5.0,
-            "PRIMER_WT_SELF_ANY_TH": 5.0,
-            "PRIMER_WT_HAIRPIN_TH": 1.0,
+            "PRIMER_WT_SELF_ANY_TH": singleplex.PRIMER_WT_SELF_ANY_TH,
+            "PRIMER_WT_HAIRPIN_TH": singleplex.PRIMER_WT_HAIRPIN_TH,
             "PRIMER_WT_TEMPLATE_MISPRIMING_TH": 1.0,
             "PRIMER_PAIR_WT_COMPL_ANY": 5.0,
             "PRIMER_PAIR_WT_COMPL_ANY_TH": 5.0,
             "PRIMER_PAIR_WT_COMPL_END_TH": 5.0,
             "PRIMER_PAIR_WT_TEMPLATE_MISPRIMING_TH": 1.0,
-            "PRIMER_PAIR_WT_PRODUCT_SIZE_LT": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_PAIR_WT_PRODUCT_SIZE_LT"],
-            "PRIMER_PAIR_WT_PRODUCT_SIZE_GT": panel.config[
-                "singleplex_design_parameters"
-            ]["PRIMER_PAIR_WT_PRODUCT_SIZE_GT"],
+            "PRIMER_PAIR_WT_PRODUCT_SIZE_LT": pair_params.PRIMER_PAIR_WT_PRODUCT_SIZE_LT,
+            "PRIMER_PAIR_WT_PRODUCT_SIZE_GT": pair_params.PRIMER_PAIR_WT_PRODUCT_SIZE_GT,
             "PRIMER_PRODUCT_SIZE_RANGE": [[min_product_length, max_product_length]],
         }
 
@@ -430,7 +363,7 @@ def primer3py_design_primers(
             logger.warning(
                 f"No suitable primer pairs found for junction: {junction.name}"
             )
-            tm_range = f"Tm range: {panel.config['singleplex_design_parameters']['PRIMER_MIN_TM']} - {panel.config['singleplex_design_parameters']['PRIMER_MAX_TM']}"
+            tm_range = f"Tm range: {singleplex.PRIMER_MIN_TM} - {singleplex.PRIMER_MAX_TM}"
             logger.info(f"{tm_range}. Consider increasing the Tm range.")
         elif junction.primer3_designs["PRIMER_PAIR_NUM_RETURNED"] < num_expected:
             logger.warning(f"Fewer primer pairs found than desired: {num_expected}")

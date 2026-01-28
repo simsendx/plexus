@@ -1,3 +1,12 @@
+# ================================================================================
+# Command-line interface for multiplex primer designer
+#
+# Thin wrapper around the pipeline module.
+#
+# Author: Stefan Filges (stefan@simsendiagnostics.com)
+# Copyright (c) 2025 Simsen Diagnostics AB
+# ================================================================================
+
 from pathlib import Path
 from typing import Annotated
 
@@ -5,19 +14,14 @@ import typer
 from loguru import logger
 from rich.console import Console
 
-from multiplexdesigner.blast.specificity import run_specificity_check
-from multiplexdesigner.designer.design import run_designer
 from multiplexdesigner.version import __version__
 
-# Create main app and subcommand apps
 app = typer.Typer(
     name="multiplexdesigner",
-    help="Pipeline for generating multiplex PCR primers.",
+    help="Design multiplex PCR primer panels.",
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
-
-DEFAULT_OUTPUT_DIR = Path("./output")
 
 console = Console()
 
@@ -48,76 +52,129 @@ def main(
         typer.Option("--verbose", "-V", help="Enable verbose output (DEBUG level)."),
     ] = False,
 ) -> None:
-    """UMI Error Correct - Pipeline for analyzing barcoded amplicon sequencing data."""
+    """Multiplex Primer Designer - Design optimized multiplex PCR primer panels."""
     log_level = "DEBUG" if verbose else "INFO"
     logger.add("multiplexdesigner.log", level=log_level)
 
 
 @app.command()
-def design(
+def run(
     input_file: Annotated[
         Path,
         typer.Option(
-            "--input-junctions",
+            "--input",
             "-i",
-            help="Path to the input CSV file containing junctions.",
+            help="Path to CSV file containing junction coordinates.",
         ),
     ],
     fasta_file: Annotated[
         Path,
-        typer.Option("--fasta", "-f", help="Path to the reference genome FASTA file."),
+        typer.Option(
+            "--fasta",
+            "-f",
+            help="Path to reference genome FASTA file.",
+        ),
     ],
     output_dir: Annotated[
         Path,
-        typer.Option("--output", "-o", help="Directory to save output files."),
-    ] = DEFAULT_OUTPUT_DIR,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Directory for output files.",
+        ),
+    ] = Path("./output"),
+    panel_name: Annotated[
+        str,
+        typer.Option(
+            "--name",
+            "-n",
+            help="Name for the primer panel.",
+        ),
+    ] = "multiplex_panel",
+    genome: Annotated[
+        str,
+        typer.Option(
+            "--genome",
+            "-g",
+            help="Reference genome name.",
+        ),
+    ] = "hg38",
+    preset: Annotated[
+        str,
+        typer.Option(
+            "--preset",
+            "-p",
+            help="Configuration preset (default or lenient).",
+        ),
+    ] = "default",
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to custom configuration JSON file.",
+        ),
+    ] = None,
     skip_blast: Annotated[
-        bool, typer.Option("--skip-blast", help="Skip the BLAST specificity check.")
+        bool,
+        typer.Option(
+            "--skip-blast",
+            help="Skip the BLAST specificity check.",
+        ),
     ] = False,
-):
+    padding: Annotated[
+        int,
+        typer.Option(
+            "--padding",
+            help="Bases to extract around each junction.",
+        ),
+    ] = 200,
+) -> None:
     """
-    Run the multiplex primer design pipeline.
+    Run the complete multiplex primer design pipeline.
+
+    Example:
+        multiplexdesigner run -i junctions.csv -f genome.fa -o results/
     """
+    from multiplexdesigner.pipeline import run_pipeline
 
-    # Create output directory
-    logger.info(f"Creating output directory: {output_dir}")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    console.print("[bold green]Multiplex Primer Designer[/bold green]")
+    console.print(f"  Input:  {input_file}")
+    console.print(f"  FASTA:  {fasta_file}")
+    console.print(f"  Output: {output_dir}")
+    console.print()
 
-    console = Console()
-    console.print("[bold green]Starting design pipeline...[/bold green]")
-    console.print(f"Input: {input_file}")
-    console.print(f"Genome: {fasta_file}")
-    console.print(f"Output: {output_dir}")
-
-    # 1. Run Designer
     try:
-        panel = run_designer(
-            design_input_file=str(input_file), fasta_file=str(fasta_file)
+        result = run_pipeline(
+            input_file=input_file,
+            fasta_file=fasta_file,
+            output_dir=output_dir,
+            panel_name=panel_name,
+            genome=genome,
+            preset=preset,
+            config_path=config_file,
+            run_blast=not skip_blast,
+            padding=padding,
         )
-    except Exception as e:
-        console.print(f"[bold red]Error during design phase: {e}[/bold red]")
+
+        if result.success:
+            console.print()
+            console.print("[bold green]Pipeline completed successfully![/bold green]")
+            console.print(f"  Junctions:    {result.num_junctions}")
+            console.print(f"  Primer pairs: {result.num_primer_pairs}")
+            console.print(f"  Output:       {result.output_dir}")
+        else:
+            console.print()
+            console.print("[bold yellow]Pipeline completed with warnings:[/bold yellow]")
+            for error in result.errors:
+                console.print(f"  [yellow]• {error}[/yellow]")
+
+    except FileNotFoundError as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1) from e
-
-    # 2. Save Intermediate Results
-    console.print("[bold blue]Saving candidate designs...[/bold blue]")
-    try:
-        panel.save_candidate_pairs_to_csv(str(output_dir / "candidate_pairs.csv"))
     except Exception as e:
-        console.print(f"[yellow]Warning: Could not save candidate pairs: {e}[/yellow]")
-
-    # 3. Run Specificity Check (BLAST)
-    if not skip_blast:
-        console.print("[bold blue]Running specificity check...[/bold blue]")
-        try:
-            blast_dir = output_dir / "blast"
-            run_specificity_check(panel, str(blast_dir), str(fasta_file))
-        except Exception as e:
-            console.print(f"[bold red]Error during specificity check: {e}[/bold red]")
-            # We don't exit here, as partial results might still be useful
-    else:
-        console.print("[yellow]Skipping BLAST specificity check.[/yellow]")
-
-    console.print("[bold green]Pipeline completed successfully![/bold green]")
+        console.print(f"[bold red]Pipeline failed: {e}[/bold red]")
+        raise typer.Exit(code=1) from e
 
 
 if __name__ == "__main__":
