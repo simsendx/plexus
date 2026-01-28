@@ -5,7 +5,6 @@
 # Copyright (c) 2025 Simsen Diagnostics AB
 # ================================================================================
 
-import json
 import os
 import uuid
 from dataclasses import dataclass
@@ -16,8 +15,8 @@ from Bio import SeqIO
 from loguru import logger
 
 from multiplexdesigner.aligner import PrimerDimerPredictor
+from multiplexdesigner.config import DesignerConfig, load_config
 from multiplexdesigner.designer.primer import PrimerPair
-from multiplexdesigner.utils.root_dir import ROOT_DIR
 from multiplexdesigner.utils.utils import write_fasta_from_dict
 
 # ================================================================================
@@ -223,53 +222,35 @@ class MultiplexPanel:
         self.date = datetime.now().isoformat()
         self.panel_uuid = str(uuid.uuid4())
         self.junctions = []
-        self.config = None
+        self.config: DesignerConfig | None = None
         self.junction_df = None
 
     def load_config(
         self,
         preset: str = "default",
-        config_path: str = None,
-        config_dict: dict = None,
-    ):
+        config_path: str | None = None,
+        config_dict: dict | None = None,
+    ) -> None:
         """
         Load design and PCR configuration parameters.
 
+        Uses Pydantic for validation. Invalid configurations will raise
+        a ValidationError with detailed information about what's wrong.
+
         Args:
-            self: A MultiplexPanel object
             preset: Which standard config file to use? Either "default" or "lenient".
-            config_path: User-provided config from a file. If none is provided, the config is chosen based on the preset value.
-            config_dict: User-provided config from a dictionary. If none is provided, the config is chosen based on the preset value.
+            config_path: User-provided config from a file. Overrides preset.
+            config_dict: User-provided config from a dictionary. Highest priority.
 
-        Returns:
-            A MultiplexPanel object with loaded configuration.
+        Raises:
+            pydantic.ValidationError: If configuration parameters are invalid.
+            FileNotFoundError: If config_path is specified but file doesn't exist.
         """
-        if config_dict:
-            config = config_dict
-            logger.info("Config loaded from dictionary.")
-        elif config_path:
-            with open(config_path) as f:
-                config = json.load(f)
-            logger.info(f"Config loaded from: {config_path}")
-        else:
-            logger.info(
-                f"No config file provided, using preset configuration: {preset}"
-            )
-            if preset == "default":
-                config_path = f"{ROOT_DIR}/config/designer_default_config.json"
-            elif preset == "lenient":
-                config_path = f"{ROOT_DIR}/config/designer_lenient_config.json"
-            else:
-                config_path = f"{ROOT_DIR}/config/designer_default_config.json"
-
-                warn_msg = f"Preset value `{preset}` must be either 'default' or 'lenient'. Using default instead."
-                logger.warning(warn_msg)
-
-            with open(config_path) as f:
-                config = json.load(f)
-            logger.info(f"Config loaded from: {config_path}")
-
-        self.config = config
+        self.config = load_config(
+            preset=preset,
+            config_path=config_path,
+            config_dict=config_dict,
+        )
 
     def import_junctions_csv(self, file_path: str):
         """Import junctions from CSV file using pandas"""
@@ -314,7 +295,7 @@ class MultiplexPanel:
             return
 
         # Get max_amplicon_length from config (use as merge distance)
-        max_amplicon_gap = self.config.get("max_amplicon_length", 100)
+        max_amplicon_gap = self.config.primer_pair_parameters.PRIMER_PRODUCT_MAX_SIZE
 
         logger.info(
             f"Merging junctions within {max_amplicon_gap} bp on same chromosome..."
@@ -532,7 +513,7 @@ class MultiplexPanel:
             logger.warning("No design config loaded, using default padding of 3bp")
             padding = 3
         else:
-            padding = self.config.get("junction_padding_bases", 3)
+            padding = self.config.singleplex_design_parameters.junction_padding_bases
 
         coordinates_calculated = 0
 
