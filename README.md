@@ -55,7 +55,7 @@ multiplexdesigner run \
   --name my_panel
 ```
 
-### Input Format
+### Input file format
 
 The input file should be a CSV containing the target junctions with the following columns:
 
