@@ -3,6 +3,7 @@
 # ================================================================================
 
 import json
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -16,14 +17,21 @@ from multiplexdesigner.version import __version__
 runner = CliRunner()
 
 
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape sequences from a string."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
+
 class TestCLIBasics:
     """Tests for basic CLI functionality."""
 
     def test_help(self):
         """Test that --help works."""
-        result = runner.invoke(app, ["--help"])
+        result = runner.invoke(app, ["--help"], env={"COLUMNS": "120"})
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "Design multiplex PCR primer panels" in result.output
+        assert "Design multiplex PCR primer panels" in output
 
     def test_version(self):
         """Test that --version shows version."""
@@ -33,10 +41,11 @@ class TestCLIBasics:
 
     def test_no_args_shows_help(self):
         """Test that no arguments shows help/usage."""
-        result = runner.invoke(app, [])
+        result = runner.invoke(app, [], env={"COLUMNS": "120"})
+        output = strip_ansi(result.output)
         # Typer shows usage when no args provided
-        assert "Usage:" in result.output
-        assert "COMMAND" in result.output
+        assert "Usage:" in output
+        assert "COMMAND" in output
 
 
 class TestRunCommand:
@@ -44,12 +53,13 @@ class TestRunCommand:
 
     def test_run_help(self):
         """Test that run --help works."""
-        result = runner.invoke(app, ["run", "--help"])
+        result = runner.invoke(app, ["run", "--help"], env={"COLUMNS": "120"})
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "Run the complete multiplex primer design pipeline" in result.output
-        assert "--input" in result.output
-        assert "--fasta" in result.output
-        assert "--output" in result.output
+        assert "Run the complete multiplex primer design pipeline" in output
+        assert "--input" in output
+        assert "--fasta" in output
+        assert "--output" in output
 
     def test_run_missing_input(self):
         """Test that run fails without --input."""
