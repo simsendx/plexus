@@ -1,6 +1,6 @@
 # Computes potential dimers betweeen pairs of primers
 #
-# The cross dimer or primer dimer check is an important design step to optimize primer performance in multiplex reactions. 
+# The cross dimer or primer dimer check is an important design step to optimize primer performance in multiplex reactions.
 # What algorithms to use?
 #
 # Examples are:
@@ -9,20 +9,22 @@
 #
 # Both use thermodynamic alignment values to estimate primer dimer alignment.
 #
-# Specific forward and reverse primer pairs resulting from the preceding design task form the input for this workflow step. It starts with 
-# the input sequence that has fewest specific primers. These primers are checked against all other possible primers of the 
-# other input sequences. The first results involve primer pairs which do not exceed the cross dimerization thresholds. If the 
-# results contain at least one primer pair for each sequence, each one is checked against the other primers in the results. 
+# Specific forward and reverse primer pairs resulting from the preceding design task form the input for this workflow step. It starts with
+# the input sequence that has fewest specific primers. These primers are checked against all other possible primers of the
+# other input sequences. The first results involve primer pairs which do not exceed the cross dimerization thresholds. If the
+# results contain at least one primer pair for each sequence, each one is checked against the other primers in the results.
 # Finally, for each input sequence one primer pair forming no cross dimerization with all other sequences is returned.
 
 import json
-from itertools import product
 from dataclasses import dataclass, field
+from itertools import product
+
 from multiplexdesigner.utils.root_dir import ROOT_DIR
 
 # ================================================================================
 # Define an alignment between two primers
 # ================================================================================
+
 
 @dataclass(order=True)
 class PrimerAlignment:
@@ -42,23 +44,24 @@ class PrimerAlignment:
 # Primer alignment algorithms
 # ================================================================================
 
+
 class PrimerDimerPredictor:
     """
     Align two primers using an algorithm like the one described
     by Johnston et al. (2019) Sci Reports: https://www.nature.com/articles/s41598-018-36612-9
-    
+
     Primary idea is to only allow:
     - Ungapped alignments
     - With 5' overhangs (i.e. extensible)
-    
+
     And then to add a bonus if either 3' end is complementary in
     the highest scoring alignment
     """
 
-    def __init__(self, param_path=None):
+    def __init__(self, logger, param_path: str = None):
         """
         Initialize the PrimerDimerPredictor aligner.
-        
+
         Parameters
         ----------
         param_path : str, optional
@@ -69,11 +72,11 @@ class PrimerDimerPredictor:
         self.primer1_name = None
         self.primer2_name = None
         self.score = None
-        
+
         # Load parameters
         if param_path is None:
             param_path = f"{ROOT_DIR}/config/alignment_parameters.json"
-        self.load_parameters(param_path)
+        self.load_parameters(logger, param_path)
 
     def set_primers(self, primer1, primer2, primer1_name, primer2_name):
         """Set a pair of primers to align"""
@@ -82,34 +85,38 @@ class PrimerDimerPredictor:
         self.primer1_name = primer1_name
         self.primer2_name = primer2_name
         self.score = None
-        
-    def load_parameters(self, param_path):
+
+    def load_parameters(self, logger, param_path: str = None):
         """
         Load parameters necessary for Primer Dimer algorithm,
         and set as attributes
-        
+
         Parameters
         ----------
         param_path : str
             Path to the parameters JSON file
         """
+        logger.info(f"Loading alignment parameters from: {param_path}")
+
         # Load parameter JSON
-        with open(param_path, "r") as f:
+        with open(param_path) as f:
             params = json.load(f)
 
         # Load nearest neighbour model, these should all be paths
         self.nn_scores = create_nn_score_dt(
             match_json=f"{ROOT_DIR}/{params['match_scores']}",
             single_mismatch_json=f"{ROOT_DIR}/{params['single_mismatch_scores']}",
-            double_mismatch_score=params['double_mismatch_score']
+            double_mismatch_score=params["double_mismatch_score"],
         )
 
         # Load penalties
         self.end_length = params["end_length"]
         self.end_bonus = params["end_bonus"]
-        
+
     @staticmethod
-    def _calc_linear_extension_bonus(matching, overhang_left, overhang_right, end_length, end_bonus):
+    def _calc_linear_extension_bonus(
+        matching, overhang_left, overhang_right, end_length, end_bonus
+    ):
         """
         Calculate a bonus score for primer-dimer alignments that would allow for *extension*
 
@@ -153,11 +160,11 @@ class PrimerDimerPredictor:
             right_end += 1
 
         return (left_end + right_end) * end_bonus
-    
+
     def _validate_primers_set(self):
         """
         Validate that primers have been set before alignment.
-        
+
         Raises
         ------
         ValueError
@@ -165,16 +172,15 @@ class PrimerDimerPredictor:
         """
         if self.primer1 is None or self.primer2 is None:
             raise ValueError(
-                "Primers must be set before alignment. "
-                "Call set_primers() first."
+                "Primers must be set before alignment. Call set_primers() first."
             )
         if not self.primer1 or not self.primer2:
             raise ValueError("Primers cannot be empty strings.")
-        
+
     def align(self):
         """
         Align primers, finding highest score and its associated start position.
-        
+
         Raises
         ------
         ValueError
@@ -185,7 +191,7 @@ class PrimerDimerPredictor:
 
         # Reverse complement mapping dictionary
         rc_map = {"A": "T", "T": "A", "C": "G", "G": "C"}
-        
+
         # Identify longer and shorter primer
         primers = [self.primer1, self.primer2]
         primers.sort(key=len, reverse=True)
@@ -198,35 +204,33 @@ class PrimerDimerPredictor:
         best_score = 10
         best_matching = []
         for i in range(nL - 1):
-
             # Compute score for alignment
             matching = []
             current_score = 0
             for j in range(nS - 1):
-
                 # Compute pseudo-Gibb's
-                l_bases = l[(i+j):(i+j+2)]   # 2 bases
-                s_bases = s[j:(j+2)]         # 2 bases
+                l_bases = l[(i + j) : (i + j + 2)]  # 2 bases
+                s_bases = s[j : (j + 2)]  # 2 bases
                 nn = f"{l_bases}/{s_bases}"  # Set base comparison map
                 current_score += self.nn_scores[nn]
 
                 # Compute if matching, for left-end
-                matching.append(rc_map[s[j]] == l[i+j])
+                matching.append(rc_map[s[j]] == l[i + j])
 
                 # Stop if reached last dinucleotide of longer primer
                 if i + j == nL - 2:
                     break
 
             # Add matching state for last nucleotide
-            matching.append(rc_map[s[j+1]] == l[i+j+1])
+            matching.append(rc_map[s[j + 1]] == l[i + j + 1])
 
             # Compute end bonus
             current_score += self._calc_linear_extension_bonus(
                 matching,
                 overhang_left=i > 0,
-                overhang_right=len(matching) < nS, 
+                overhang_right=len(matching) < nS,
                 end_length=self.end_length,
-                end_bonus=self.end_bonus
+                end_bonus=self.end_bonus,
             )
 
             # Update if this is the new best score
@@ -234,34 +238,32 @@ class PrimerDimerPredictor:
                 best_score = current_score
                 best_start = i
                 best_matching = matching
-                
+
         # Assign to instance variables
         self.score = best_score
         self.best_start = best_start
-        
+
         # Helps with getting alignment string
         self.best_matching = best_matching
         self.s = s
         self.l = l
-        
+
     def get_alignment_string(self):
         """
         Return a string representing the best alignment between the two primers.
-        
+
         Returns
         -------
         str
             ASCII representation of the alignment
-            
+
         Raises
         ------
         ValueError
             If align() has not been called yet
         """
         if self.score is None:
-            raise ValueError(
-                "No alignment available. Call align() first."
-            )
+            raise ValueError("No alignment available. Call align() first.")
 
         # Recover names, kinda ugly
         if self.l == self.primer1:
@@ -276,7 +278,7 @@ class PrimerDimerPredictor:
         str_template = "{:>%d}    {}\n" % name_max
 
         # Create individual strings
-        gap = " "*self.best_start
+        gap = " " * self.best_start
         lstr = f"5-{self.l}-3"
         mstr = f"{gap}  {''.join(['|' if m else ' ' for m in self.best_matching])}"
         sstr = f"{gap}3-{self.s}-5"
@@ -288,30 +290,28 @@ class PrimerDimerPredictor:
         align_str += "\n"
 
         return align_str
-    
+
     def print_alignment(self):
         """Print an ASCII view of the aligned primers"""
         print(self.get_alignment_string())
-    
+
     def get_primer_alignment(self):
         """
         Return an alignment object.
-        
+
         Returns
         -------
         PrimerAlignment
             Object containing alignment results
-            
+
         Raises
         ------
         ValueError
             If align() has not been called yet
         """
         if self.score is None:
-            raise ValueError(
-                "No alignment available. Call align() first."
-            )
-            
+            raise ValueError("No alignment available. Call align() first.")
+
         return PrimerAlignment(
             primer1=self.primer1,
             primer2=self.primer2,
@@ -325,7 +325,7 @@ class PrimerDimerPredictor:
 def create_nn_score_dt(match_json, single_mismatch_json, double_mismatch_score=0.2):
     """
     Create the Gibb's free energy nearest neighbour scoring dictionary
-    
+
     Parameters
     ----------
     match_json : str
@@ -334,16 +334,16 @@ def create_nn_score_dt(match_json, single_mismatch_json, double_mismatch_score=0
         Path to JSON file containing single mismatch scores
     double_mismatch_score : float, optional
         Score for double mismatches (default: 0.2)
-        
+
     Returns
     -------
     dict
         Dictionary mapping dinucleotide pairs to their scores
     """
     # Load match and single mismatch .jsons
-    with open(match_json, "r") as f:
+    with open(match_json) as f:
         match_dt = json.load(f)
-    with open(single_mismatch_json, "r") as f:
+    with open(single_mismatch_json) as f:
         single_mismatch_dt = json.load(f)
 
     # Set all as double mismatches; then update

@@ -1,4 +1,4 @@
-#-------------------------------------------// (2) DESIGNER //----------------------------------
+# -------------------------------------------// (2) DESIGNER //----------------------------------
 #
 # DESIGNER is the core engine for creating all the primer and probe candidates and computing all the
 # thermodynamic aspects of design such as target unimolecular folding, primer folding, bimolecular
@@ -14,25 +14,39 @@
 # alternative alleles with CAF > 0.01 within each of the design regions and then automatically designs the
 # primers to AVOID those SNP sites.
 #
-# 1. Generate potential solutions TODO Generate k-mers as initial solutions
+# 1. Generate potential solutions Generate k-mers as initial solutions
 # 2. Score each solutions TODO define scoring algorithm, including SNP penalty
 # 3. Select top candidates for each target (init_solutions)
 # 4. BLAST against amplicons in panel and discard matches TODO implement BLAST search
 # 5. Keep top N solutions (top_solutions_to_keep)
 # 6. Perform multiplex picking in N^X space for N solutions and X targets TODO implement multiplex picker algorithm
 #
-#-----------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------
 
-from multiplexdesigner.designer.primer3_port import choose_left_and_right_primers
+from multiplexdesigner.designer.design import design_primers
+from multiplexdesigner.designer.multiplexpanel import panel_factory
+from multiplexdesigner.utils.pretty_cli import display_welcome
 
-def main():
-    panel = choose_left_and_right_primers(
-        design_input_file = './data/design_regions.csv',
-        fasta_file = '/Users/ctosimsen/hg38/hg38.fa',
-        config_file = './config/designer_default_config.json'
+
+def main(
+    design_input_file: str = "./data/junctions.csv",
+    fasta_file: str = "/Users/ctosimsen/Documents/hg38/hg38.fa",
+):
+    display_welcome()
+
+    panel = design_primers(
+        multiplexpanel=panel_factory(
+            name="test_panel",
+            genome="hg38",
+            design_input_file=design_input_file,
+            fasta_file=fasta_file,
+            padding=200,
+        ),
+        method="simsen",
     )
 
-    return(panel)
+    return panel
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

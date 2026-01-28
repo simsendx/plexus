@@ -1,15 +1,16 @@
-import os
 import json
-import pandas as pd
+import os
 
-from .runner import BlastRunner
-from .annotator import BlastResultsAnnotator
-from .offtarget import AmpliconFinder
+import pandas as pd
 from multiply.download.collection import genome_collection
-from multiply.util.printing import print_header, print_footer
+from multiply.util.definitions import ROOT_DIR
 from multiply.util.dirs import produce_dir
 from multiply.util.io import write_fasta_from_dict
-from multiply.util.definitions import ROOT_DIR
+from multiply.util.printing import print_footer, print_header
+
+from .annotator import BlastResultsAnnotator
+from .offtarget import AmpliconFinder
+from .runner import BlastRunner
 
 
 def blast(primer_csv, genome_name):
@@ -21,14 +22,16 @@ def blast(primer_csv, genome_name):
 
     """
     # PARSE CLI
-    t0 = print_header("MULTIPLY: BLAST primers to identify possible off-target amplicons")
+    t0 = print_header(
+        "MULTIPLY: BLAST primers to identify possible off-target amplicons"
+    )
     input_dir = os.path.dirname(primer_csv)
     print("Parsing inputs...")
     output_dir = produce_dir(input_dir, "blast")
     genome = genome_collection[genome_name]
     print(f"  Primer CSV: {primer_csv}")
     print(f"  Output directory: {output_dir}")
-    print(f"Done.\n")
+    print("Done.\n")
 
     # LOAD DATA
     print("Loading data...")
@@ -36,7 +39,7 @@ def blast(primer_csv, genome_name):
     print(f"  Found {primer_df.shape[0]} primers.")
 
     # LOAD PARAMATERS
-    params = json.load(open(f"{ROOT_DIR}/settings/blast/parameters.json", "r"))
+    params = json.load(open(f"{ROOT_DIR}/settings/blast/parameters.json"))
     param_str = [f"{k}={v}" for k, v in params.items()]
     print(f"  BLAST parameters: {', '.join(param_str)}")
     print("Done.\n")

@@ -1,19 +1,22 @@
 # ================================================================================
 # Primer classes and associated functions
-# 
+#
 # Author: Stefan Filges (stefan@simsendiagnostics.com)
 # Copyright (c) 2025 Simsen Diagnostics AB
 # ================================================================================
 
 from dataclasses import dataclass, field
+
 from multiplexdesigner.designer.thal import seqtm
-from multiplexdesigner.utils.utils import gc_content, create_primer_dataframe
+from multiplexdesigner.utils.utils import create_primer_dataframe, gc_content
+
 
 @dataclass
 class Primer:
     """
     Define a single primer.
     """
+
     name: str
     seq: str
     direction: str
@@ -29,7 +32,7 @@ class Primer:
     hairpin_th: float = None
     end_stability: float = None
     engine: str = None
-    
+
     def add_tail(self, tail_seq: str, tail_direction: str = "five_prime"):
         """
         Add tail sequence to primer.
@@ -54,6 +57,7 @@ class PrimerPair:
         pair_penalty: Total primer pair penalty
         pair_id: Unique ID of the primer pair
     """
+
     forward: object
     reverse: object
     insert_size: int
@@ -64,21 +68,21 @@ class PrimerPair:
 
     @staticmethod
     def calculate_primer_pair_penalty_th(
-            primer_left_penalty,
-            primer_right_penalty,
-            primer_left_tm,
-            primer_right_tm,
-            product_size,
-            product_opt_size: int = 0,
-            wt_pr_penalty = 1.0,
-            wt_product_size_gt = 0.0,
-            wt_product_size_lt = 0.0,
-            wt_diff_tm = 0.0
-        ):
+        primer_left_penalty,
+        primer_right_penalty,
+        primer_left_tm,
+        primer_right_tm,
+        product_size,
+        product_opt_size: int = 0,
+        wt_pr_penalty=1.0,
+        wt_product_size_gt=0.0,
+        wt_product_size_lt=0.0,
+        wt_diff_tm=0.0,
+    ):
         """
         Calculate primer pair penalty using thermodynamic approach. Based
         on primer3 docs.
-        
+
         Parameters:
         -----------
         primer_left_penalty : float
@@ -107,36 +111,39 @@ class PrimerPair:
             Various weight parameters (default values shown)
         use_internal_oligo : bool
             Whether internal oligo is used
-        
+
         Returns:
         --------
         float : Total penalty for the primer pair
         """
-        
+
         penalty = 0.0
-        
+
         # Add single primer penalties
         penalty += wt_pr_penalty * (primer_left_penalty + primer_right_penalty)
-        
-        # Product size penalties. This parameter influences primer pair selection only if 
-        # wt_product_size_gt or wt_product_size_lt are non-0. Standard primer3 does not use
-        # this, i.e. product_opt_size = 0. But some ctDNA it should be beneficial to select 
-        # short amplicons and short amplicons should be favoured.
+
+        # Product size penalties. This parameter influences primer pair selection
+        # only if wt_product_size_gt or wt_product_size_lt are non-0. Standard
+        # primer3 does not use this, i.e. product_opt_size = 0. But some ctDNA
+        # it should be beneficial to select short amplicons and short amplicons
+        # should be favoured.
         if product_opt_size > 0:
             if product_size > product_opt_size:
                 penalty += wt_product_size_gt * (product_size - product_opt_size)
             elif product_size < product_opt_size:
                 penalty += wt_product_size_lt * (product_opt_size - product_size)
-        
+
         # Difference in Tm between primers
         penalty += wt_diff_tm * abs(primer_left_tm - primer_right_tm)
-        
+
         return penalty
 
 
+# TODO: deprecated?
 @dataclass
 class Primer3:
     """Class to represent primer3 output"""
+
     panel_name: str
     junction_name: str
     chrom: str
@@ -150,8 +157,10 @@ class Primer3:
     right_primer_table: object = None
 
 
-# TODO: import primer pairs from primer3 output. Wouldn't it be better to design forward and reverse primers
-# separately instead of in pairs, and only consider pairing while also checking for primer dimers?
+# TODO: import primer pairs from primer3 output. Wouldn't it be better to design
+# forward and reverse primers separately instead of in pairs, and only consider pairing
+# while also checking for primer dimers?
+
 
 def load_primer_pairs_from_primer3_output(primer3_output, add_target=None):
     """
@@ -176,17 +185,14 @@ def load_primer_pairs_from_primer3_output(primer3_output, add_target=None):
         for d in directions:
             pair = {}
             pair[d] = Primer(
-                seq = row['LEFT'],
+                seq=row["LEFT"],
                 direction="F" if d == "LEFT" else "R",
                 start=1,
                 length=2,
                 tm=1,
-                gc=1
+                gc=1,
             )
-        primer_pair = PrimerPair(
-            F=pair["LEFT"],
-            R=pair["RIGHT"]
-        )
+        primer_pair = PrimerPair(F=pair["LEFT"], R=pair["RIGHT"])
         primer_pairs.append(primer_pair)
 
     return primer_pairs
@@ -211,42 +217,42 @@ def get_primer_dict(junction):
 
     for index, row in df.iterrows():
         # FORWARD
-        left_seq = row['left_sequence']
-        left_direction = 'forward'
+        left_seq = row["left_sequence"]
+        left_direction = "forward"
         left_key = (left_seq, left_direction)
         if left_key not in primer_dict:
             left_tm_bound = seqtm(left_seq)
             left_primer = Primer(
-                name = f"{junction.name}_{index}_forward",
-                seq = left_seq,
-                direction = left_direction,
-                start = row['left_coords'][0],
-                length = row['left_coords'][1],
-                tm_primer3 = round(row['left_tm'], 2),
-                tm = round(left_tm_bound.Tm, 2),
-                bound = round(left_tm_bound.bound, 2),
-                gc = round(gc_content(left_seq), 2),
-                penalty = row['left_penalty']
+                name=f"{junction.name}_{index}_forward",
+                seq=left_seq,
+                direction=left_direction,
+                start=row["left_coords"][0],
+                length=row["left_coords"][1],
+                tm_primer3=round(row["left_tm"], 2),
+                tm=round(left_tm_bound.Tm, 2),
+                bound=round(left_tm_bound.bound, 2),
+                gc=round(gc_content(left_seq), 2),
+                penalty=row["left_penalty"],
             )
             primer_dict[left_key] = left_primer
 
         # REVERSE
-        right_seq = row['right_sequence']
-        right_direction = 'reverse'
+        right_seq = row["right_sequence"]
+        right_direction = "reverse"
         right_key = (right_seq, right_direction)
         if right_key not in primer_dict:
             right_tm_bound = seqtm(right_seq)
             right_primer = Primer(
                 name=f"{junction.name}_{index}_reverse",
-                seq = right_seq,
-                direction = right_direction,
-                start = row['right_coords'][0],
-                length = row['right_coords'][1],
-                tm_primer3 = round(row['right_tm'], 2),
-                tm = round(right_tm_bound.Tm, 2),
-                bound = round(right_tm_bound.bound, 2),
-                gc = round(gc_content(right_seq), 2),
-                penalty = row['right_penalty']
+                seq=right_seq,
+                direction=right_direction,
+                start=row["right_coords"][0],
+                length=row["right_coords"][1],
+                tm_primer3=round(row["right_tm"], 2),
+                tm=round(right_tm_bound.Tm, 2),
+                bound=round(right_tm_bound.bound, 2),
+                gc=round(gc_content(right_seq), 2),
+                penalty=row["right_penalty"],
             )
             primer_dict[right_key] = right_primer
 

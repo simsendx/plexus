@@ -1,13 +1,13 @@
-import os
 import json
-
-import pandas as pd
+import os
 from functools import partial, reduce
 
-from multiply.util.printing import print_header, print_footer
+import pandas as pd
+from multiply.download.collection import genome_collection
 from multiply.util.dirs import produce_dir
 from multiply.util.io import write_primers_to_bed
-from multiply.download.collection import genome_collection
+from multiply.util.printing import print_footer, print_header
+
 from .bedtools import bedtools_intersect
 
 
@@ -38,7 +38,7 @@ def snpcheck(primer_csv, genome_name):
         print(f"No variation data is available for {genome_name}. Exiting.")
         return
     print(f"  Found data at: {genome.include_variation}")
-    variation_dt = json.load(open(genome.include_variation, "r"))
+    variation_dt = json.load(open(genome.include_variation))
     print(f"  Includes: {', '.join(variation_dt)}")
     print("Done.")
     print("")
@@ -47,11 +47,10 @@ def snpcheck(primer_csv, genome_name):
     # - Might want to also output information about overlaps
     dfs = []
     for pop, pop_fn in variation_dt.items():
-
         # Parse
         print(f"Looking for intersections with: {pop}")
         print(f"  Variation file: {pop_fn}")
-        print(f"  Intersecting...")
+        print("  Intersecting...")
 
         # Intersect
         pop_output_path = f"{output_dir}/primers.snp_counts.{pop}.bed"

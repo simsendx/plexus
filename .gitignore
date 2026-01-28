@@ -5,9 +5,12 @@ __pycache__/
 
 # C extensions
 *.so
-
+.ruff_cache/
 *.DS_STORE
 .out/
+
+CLAUDE.md   
+GEMINI.md
 
 # Distribution / packaging
 .Python

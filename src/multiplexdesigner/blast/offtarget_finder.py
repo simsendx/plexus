@@ -1,6 +1,7 @@
-import pandas as pd
 from collections import namedtuple
 from dataclasses import dataclass
+
+import pandas as pd
 
 
 @dataclass(eq=True)
@@ -60,7 +61,6 @@ class AmpliconFinder:
         amplicons = []
         for chrom, chrom_df in self.bound_df.groupby("sseqid"):
             for _, F_df in chrom_df.query("sstrand == 'plus'").iterrows():
-
                 # Get start position of the forward primer
                 # 5' position
                 F_start = int(F_df["sstart"])
@@ -141,4 +141,4 @@ class AmpliconFinder:
         """Create an offtarget dataframe"""
         self.offtarget_df = self.amplicon_df.query("not (F_expected and R_expected)")
 
-    #def 
+    # def

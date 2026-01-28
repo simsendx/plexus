@@ -1,10 +1,10 @@
-import sys
 import random
-from itertools import product
-from functools import reduce
+import sys
 from abc import ABC, abstractmethod
-from .multiplex import Multiplex
+from functools import reduce
+from itertools import product
 
+from .multiplex import Multiplex
 
 # ================================================================================
 # Abstract class for selection algorithm
@@ -66,7 +66,6 @@ class GreedySearch(MultiplexSelector):
         multiplexes = []
         sys.stdout.write(f"  Iterations complete: {0}/{N}")
         for ix in range(N):
-
             # Prepare empty new multiplex
             multiplex = []
 
@@ -90,7 +89,7 @@ class GreedySearch(MultiplexSelector):
             # Print
             sys.stdout.write("\r")
             sys.stdout.flush()
-            sys.stdout.write(f"  Iterations complete: {ix+1}/{N}")
+            sys.stdout.write(f"  Iterations complete: {ix + 1}/{N}")
         print("\nDone.\n")
 
         return multiplexes
@@ -115,7 +114,7 @@ class BruteForce(MultiplexSelector):
         # Compute number of iterations required
         total_N = reduce(lambda a, b: a * b, [len(t) for t in target_pairs])
         print(
-            f"Found {int(self.primer_df.shape[0]/2)} primer pairs across {len(target_pairs)} targets."
+            f"Found {int(self.primer_df.shape[0] / 2)} primer pairs across {len(target_pairs)} targets."
         )
         print(f"A total of {total_N} possible multiplexes exist.")
 
@@ -124,7 +123,6 @@ class BruteForce(MultiplexSelector):
         stored_multiplexes = []
         stored_costs = []
         for ix, primer_pairs in enumerate(product(*target_pairs)):
-
             # Create the multiplex
             multiplex = Multiplex(
                 primer_pairs=primer_pairs,
@@ -144,7 +142,7 @@ class BruteForce(MultiplexSelector):
             # Print
             sys.stdout.write("\r")
             sys.stdout.flush()
-            sys.stdout.write(f"  Iterations complete: {ix+1}/{total_N}")
+            sys.stdout.write(f"  Iterations complete: {ix + 1}/{total_N}")
 
         print("\nDone.\n")
 
@@ -164,7 +162,6 @@ class RandomSearch(MultiplexSelector):
         multiplexes = []
         sys.stdout.write(f"  Iterations complete: {0}/{N}")
         for ix in range(N):
-
             # Randomly generate a multiplex
             multiplex = [random.choice(pairs) for _, pairs in target_pairs.items()]
 
@@ -177,7 +174,7 @@ class RandomSearch(MultiplexSelector):
             # Print
             sys.stdout.write("\r")
             sys.stdout.flush()
-            sys.stdout.write(f"  Iterations complete: {ix+1}/{N}")
+            sys.stdout.write(f"  Iterations complete: {ix + 1}/{N}")
         print("\nDone.\n")
 
         return multiplexes
