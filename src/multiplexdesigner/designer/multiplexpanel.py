@@ -677,7 +677,7 @@ class MultiplexPanel:
         except Exception as e:
             error_msg = f"Failed to create junction table: {e}"
             logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            raise RuntimeError(error_msg) from e
 
         # Check if the DataFrame is empty
         if junction_df.empty:
@@ -705,7 +705,7 @@ class MultiplexPanel:
         except Exception as e:
             error_msg = f"Failed to write junctions to {file_path}: {e}"
             logger.error(error_msg)
-            raise OSError(error_msg)
+            raise OSError(error_msg) from e
 
 
 def panel_factory(

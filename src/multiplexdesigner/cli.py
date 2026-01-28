@@ -1,4 +1,10 @@
 import typer
+from rich import box
+from rich.align import Align
+from rich.columns import Columns
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 
 app = typer.Typer()
 
@@ -6,14 +12,6 @@ app = typer.Typer()
 @app.command()
 def main():
     typer.echo("Hello World")
-
-
-from rich import box
-from rich.align import Align
-from rich.columns import Columns
-from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
 
 
 def display_welcome():

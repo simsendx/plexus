@@ -162,13 +162,13 @@ def design_multiplex_primers(
         if len(left_kmers) < 100:
             msg = "Fewer than 100 left kmers found."
             logger.warning(msg)
-            warnings.warn(msg)
+            warnings.warn(msg, stacklevel=2)
         elif len(left_kmers) == 0:
             logger.error("No left kmers found.")
             raise ValueError("No left kmers found.")
         if len(right_kmers) < 100:
             logger.warning("Fewer than 100 right kmers found.")
-            warnings.warn("Fewer than 100 right kmers found.")
+            warnings.warn("Fewer than 100 right kmers found.", stacklevel=2)
         elif len(right_kmers) == 0:
             logger.error("No right kmers found.")
             raise ValueError("No right kmers found.")

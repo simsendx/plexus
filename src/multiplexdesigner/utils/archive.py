@@ -17,12 +17,14 @@ def load_parameters(config_path):
     try:
         with open(config_path) as f:
             return json.load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Design parameters file not found at: {config_path}")
-    except json.JSONDecodeError:
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            f"Design parameters file not found at: {config_path}"
+        ) from e
+    except json.JSONDecodeError as e:
         raise ValueError(
             f"Invalid JSON format in design parameters file: {config_path}"
-        )
+        ) from e
 
 
 def calculate_primer_design_regions(j_min, j_max, design_parameters):

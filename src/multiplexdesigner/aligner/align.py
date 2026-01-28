@@ -1,19 +1,21 @@
 # Computes potential dimers betweeen pairs of primers
 #
-# The cross dimer or primer dimer check is an important design step to optimize primer performance in multiplex reactions.
-# What algorithms to use?
+# The cross dimer or primer dimer check is an important design step to optimize
+# primer performance in multiplex reactions.
 #
-# Examples are:
-# - Oli2go uses Primer3's ntthal and the user-defined ΔG and Tm values to check for cross dimerization.
-# - multiply uses the algorithm by by Johnston et al. (2019) Sci Reports: https://www.nature.com/articles/s41598-018-36612-9
+# Examples:
+# - Oli2go uses Primer3's ntthal and user-defined ΔG/Tm values
+# - multiply uses Johnston et al. (2019) Sci Reports algorithm
+#   https://www.nature.com/articles/s41598-018-36612-9
 #
 # Both use thermodynamic alignment values to estimate primer dimer alignment.
 #
-# Specific forward and reverse primer pairs resulting from the preceding design task form the input for this workflow step. It starts with
-# the input sequence that has fewest specific primers. These primers are checked against all other possible primers of the
-# other input sequences. The first results involve primer pairs which do not exceed the cross dimerization thresholds. If the
-# results contain at least one primer pair for each sequence, each one is checked against the other primers in the results.
-# Finally, for each input sequence one primer pair forming no cross dimerization with all other sequences is returned.
+# Workflow: Forward and reverse primer pairs from the design task are the input.
+# Starting with the sequence having fewest specific primers, these are checked
+# against all other possible primers. Results involve primer pairs that don't
+# exceed cross dimerization thresholds. If results contain at least one primer
+# pair per sequence, each is checked against other primers in results. Finally,
+# for each input sequence one primer pair forming no cross dimerization is returned.
 
 import json
 from dataclasses import dataclass, field
@@ -197,40 +199,40 @@ class PrimerDimerPredictor:
         # Identify longer and shorter primer
         primers = [self.primer1, self.primer2]
         primers.sort(key=len, reverse=True)
-        l, s = primers
-        s = s[::-1]
-        nL, nS = len(l), len(s)
+        longer, shorter = primers
+        shorter = shorter[::-1]
+        n_longer, n_shorter = len(longer), len(shorter)
 
         # Iterate over each start position
         best_start = 0
         best_score = 10
         best_matching = []
-        for i in range(nL - 1):
+        for i in range(n_longer - 1):
             # Compute score for alignment
             matching = []
             current_score = 0
-            for j in range(nS - 1):
+            for j in range(n_shorter - 1):
                 # Compute pseudo-Gibb's
-                l_bases = l[(i + j) : (i + j + 2)]  # 2 bases
-                s_bases = s[j : (j + 2)]  # 2 bases
-                nn = f"{l_bases}/{s_bases}"  # Set base comparison map
+                longer_bases = longer[(i + j) : (i + j + 2)]  # 2 bases
+                shorter_bases = shorter[j : (j + 2)]  # 2 bases
+                nn = f"{longer_bases}/{shorter_bases}"  # Set base comparison map
                 current_score += self.nn_scores[nn]
 
                 # Compute if matching, for left-end
-                matching.append(rc_map[s[j]] == l[i + j])
+                matching.append(rc_map[shorter[j]] == longer[i + j])
 
                 # Stop if reached last dinucleotide of longer primer
-                if i + j == nL - 2:
+                if i + j == n_longer - 2:
                     break
 
             # Add matching state for last nucleotide
-            matching.append(rc_map[s[j + 1]] == l[i + j + 1])
+            matching.append(rc_map[shorter[j + 1]] == longer[i + j + 1])
 
             # Compute end bonus
             current_score += self._calc_linear_extension_bonus(
                 matching,
                 overhang_left=i > 0,
-                overhang_right=len(matching) < nS,
+                overhang_right=len(matching) < n_shorter,
                 end_length=self.end_length,
                 end_bonus=self.end_bonus,
             )
@@ -247,8 +249,8 @@ class PrimerDimerPredictor:
 
         # Helps with getting alignment string
         self.best_matching = best_matching
-        self.s = s
-        self.l = l
+        self.shorter = shorter
+        self.longer = longer
 
     def get_alignment_string(self):
         """
@@ -267,13 +269,13 @@ class PrimerDimerPredictor:
         if self.score is None:
             raise ValueError("No alignment available. Call align() first.")
 
-        # Recover names, kinda ugly
-        if self.l == self.primer1:
-            lname = self.primer1_name
-            sname = self.primer2_name
+        # Recover names
+        if self.longer == self.primer1:
+            longer_name = self.primer1_name
+            shorter_name = self.primer2_name
         else:
-            lname = self.primer2_name
-            sname = self.primer1_name
+            longer_name = self.primer2_name
+            shorter_name = self.primer1_name
 
         # Create space, regardless of length of primer names
         name_max = max([len(self.primer1_name), len(self.primer2_name)])
@@ -281,14 +283,14 @@ class PrimerDimerPredictor:
 
         # Create individual strings
         gap = " " * self.best_start
-        lstr = f"5-{self.l}-3"
-        mstr = f"{gap}  {''.join(['|' if m else ' ' for m in self.best_matching])}"
-        sstr = f"{gap}3-{self.s}-5"
+        longer_str = f"5-{self.longer}-3"
+        match_str = f"{gap}  {''.join(['|' if m else ' ' for m in self.best_matching])}"
+        shorter_str = f"{gap}3-{self.shorter}-5"
 
         align_str = f"Dimer Score: {self.score:.03f}\n"
-        align_str += str_template.format(lname, lstr)
-        align_str += str_template.format("", mstr)
-        align_str += str_template.format(sname, sstr)
+        align_str += str_template.format(longer_name, longer_str)
+        align_str += str_template.format("", match_str)
+        align_str += str_template.format(shorter_name, shorter_str)
         align_str += "\n"
 
         return align_str

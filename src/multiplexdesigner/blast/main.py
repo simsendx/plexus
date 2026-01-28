@@ -45,7 +45,7 @@ def blast(primer_csv, genome_name):
     print("Done.\n")
 
     # WRITE PRIMER FASTA, for BLAST input
-    primer_dt = dict(zip(primer_df["primer_name"], primer_df["seq"]))
+    primer_dt = dict(zip(primer_df["primer_name"], primer_df["seq"], strict=False))
     primer_fasta = f"{output_dir}/candidate_primer.fasta"
     write_fasta_from_dict(input_dt=primer_dt, output_fasta=primer_fasta)
 

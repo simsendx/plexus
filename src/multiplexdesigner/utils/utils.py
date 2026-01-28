@@ -53,7 +53,7 @@ def reverse_complement(dna):
         reverse_comp = "".join(complement[base] for base in reversed(dna))
         return reverse_comp
     except KeyError as e:
-        raise ValueError(f"Invalid DNA base: {e.args[0]}")
+        raise ValueError(f"Invalid DNA base: {e.args[0]}") from e
 
 
 # Convert different sections to DataFrames
@@ -203,14 +203,14 @@ def generate_kmers(
             f"Provided value for kmin, {k_min}, is outside the expected range: 10 - 20"
         )
         logger.warning(warn_msg)
-        warnings.warn(warn_msg)
+        warnings.warn(warn_msg, stacklevel=2)
 
     if k_max < 20 or k_max > 30:
         warn_msg = (
             f"Provided value for kmax, {k_max}, is outside the expected range: 20 - 30"
         )
         logger.warning(warn_msg)
-        warnings.warn(warn_msg)
+        warnings.warn(warn_msg, stacklevel=2)
 
     kmers = []
     kmer_counter = 0

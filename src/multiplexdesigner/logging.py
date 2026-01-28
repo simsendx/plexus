@@ -13,7 +13,10 @@ logger.remove()
 # Add console handler with colored output
 logger.add(
     sys.stderr,
-    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
+    format=(
+        "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>"
+    ),
     level="INFO",
     colorize=True,
 )
@@ -34,7 +37,10 @@ def configure_file_logging(log_dir: str = ".") -> str:
 
     logger.add(
         log_filename,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+        format=(
+            "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
+            "{name}:{function}:{line} - {message}"
+        ),
         level="DEBUG",
         rotation="10 MB",
     )
