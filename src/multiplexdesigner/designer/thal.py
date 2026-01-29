@@ -21,6 +21,9 @@ from multiplexdesigner.utils.utils import gc_content
 # Kelvin to Celsius conversion factor
 T_KELVIN = 273.15
 
+# In cal/(K·mol)
+GAS_CONSTANT = 1.987
+
 
 @dataclass
 class TmResult:
@@ -248,16 +251,20 @@ def oligotm(
     K_mM = salt_conc + dv_to_mv
 
     temp = annealing_temp + T_KELVIN
+
+    # Apply salt correction (SantaLucia method)
     delta_S = delta_S + 0.368 * (seq_len - 1) * math.log(K_mM / 1000.0)
 
+    # Calculate Gibbs free energy and equilibrium constant
+    # Using salt-corrected delta_S as per primer3 C source
     ddG = delta_H - temp * delta_S
-    ka = math.exp(-ddG / (1.987 * temp))
+    ka = math.exp(-ddG / (GAS_CONSTANT * temp))
 
     if symmetry(seq):
-        Tm = delta_H / (delta_S + 1.987 * math.log(dna_conc / 1e9)) - T_KELVIN
+        Tm = delta_H / (delta_S + GAS_CONSTANT * math.log(dna_conc / 1e9)) - T_KELVIN
         bound = (1 / (1 + math.sqrt(1 / ((dna_conc / 1e9) * ka)))) * 100
     else:
-        Tm = delta_H / (delta_S + 1.987 * math.log(dna_conc / 4e9)) - T_KELVIN
+        Tm = delta_H / (delta_S + GAS_CONSTANT * math.log(dna_conc / 4e9)) - T_KELVIN
         bound = (1 / (1 + math.sqrt(1 / ((dna_conc / 4e9) * ka)))) * 100
 
     # Apply DMSO and formamide corrections

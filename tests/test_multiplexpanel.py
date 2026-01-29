@@ -39,7 +39,7 @@ class TestMultiplexPanelImport:
     def test_import_missing_columns(self):
         """Test importing a CSV with missing required columns."""
         # Missing Three_Prime_Coordinate
-        csv_content = "Name,Chrom,Five_Prime_Coordinate\n" "Junction1,chr1,100\n"
+        csv_content = "Name,Chrom,Five_Prime_Coordinate\nJunction1,chr1,100\n"
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             f.write(csv_content)
             temp_path = f.name

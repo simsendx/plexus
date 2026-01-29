@@ -43,8 +43,8 @@ class SingleplexDesignParameters(BaseModel):
 
     # Temperature parameters (°C)
     PRIMER_OPT_TM: float = Field(default=60.0, ge=50.0, le=72.0)
-    PRIMER_MIN_TM: float = Field(default=57.0, ge=45.0, le=70.0)
-    PRIMER_MAX_TM: float = Field(default=63.0, ge=50.0, le=75.0)
+    PRIMER_MIN_TM: float = Field(default=57.0, ge=40.0, le=70.0)
+    PRIMER_MAX_TM: float = Field(default=63.0, ge=50.0, le=80.0)
 
     # Size parameters (bp)
     PRIMER_OPT_SIZE: int = Field(default=22, ge=15, le=36)
