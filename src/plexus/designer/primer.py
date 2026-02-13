@@ -32,6 +32,7 @@ class Primer:
     hairpin_th: float = None
     end_stability: float = None
     engine: str = None
+    snp_count: int = 0
 
     def add_tail(self, tail_seq: str, tail_direction: str = "five_prime"):
         """
@@ -69,6 +70,8 @@ class PrimerPair:
     off_target_products: list = field(default_factory=list)
     dimer_score: float = None
     selected: bool = False
+    snp_count: int = 0
+    snp_penalty: float = 0.0
 
     @staticmethod
     def calculate_primer_pair_penalty_th(

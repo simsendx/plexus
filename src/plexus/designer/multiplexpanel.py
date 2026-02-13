@@ -861,6 +861,10 @@ class MultiplexPanel:
             "Dimer_Score": pair.dimer_score,
             "Off_Target_Count": len(pair.off_target_products),
             "Specificity_Checked": pair.specificity_checked,
+            "SNP_Count": pair.snp_count,
+            "SNP_Penalty": pair.snp_penalty,
+            "Forward_SNP_Count": pair.forward.snp_count,
+            "Reverse_SNP_Count": pair.reverse.snp_count,
         }
 
     def _junction_for_pair(self, pair: PrimerPair) -> Junction | None:

@@ -141,6 +141,27 @@ def run(
             help="Max parallel workers for multi-panel mode.",
         ),
     ] = None,
+    snp_vcf: Annotated[
+        Path | None,
+        typer.Option(
+            "--snp-vcf",
+            help="Path to tabix-indexed VCF/BCF for SNP checking. If omitted, uses Ensembl REST API.",
+        ),
+    ] = None,
+    skip_snpcheck: Annotated[
+        bool,
+        typer.Option(
+            "--skip-snpcheck",
+            help="Skip the SNP overlap check.",
+        ),
+    ] = False,
+    snp_af_threshold: Annotated[
+        float | None,
+        typer.Option(
+            "--snp-af-threshold",
+            help="Minimum allele frequency for SNP flagging (default: 0.01).",
+        ),
+    ] = None,
 ) -> None:
     """
     Run the complete multiplex primer design pipeline.
@@ -174,6 +195,9 @@ def run(
             config_path=config_file,
             run_blast=not skip_blast,
             padding=padding,
+            snp_vcf=snp_vcf,
+            skip_snpcheck=skip_snpcheck,
+            snp_af_threshold=snp_af_threshold,
         )
 
         if isinstance(result, MultiPanelResult):

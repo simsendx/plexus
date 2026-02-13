@@ -27,6 +27,7 @@ dependencies = [
     "primer3-py",
     "pydantic",
     "pysam",
+    "requests",
     "rich",
     "typer",
 ]

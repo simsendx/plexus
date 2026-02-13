@@ -5,12 +5,32 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.2] - 13-02-2026
+## [0.2.0] - 13-02-2026
+
+### Added
+
+- SNP overlap checking for primer binding sites with two backends:
+  - Ensembl REST API (default, no setup required)
+  - Local tabix-indexed VCF/BCF via pysam
+- New CLI options: `--snp-vcf`, `--skip-snpcheck`, `--snp-af-threshold`.
+- `SnpCheckParameters` configuration model with `af_threshold` and
+  `snp_penalty_weight` settings.
+- SNP columns (`SNP_Count`, `SNP_Penalty`, `Forward_SNP_Count`,
+  `Reverse_SNP_Count`) in output CSVs.
+- `snp_count` field on `Primer`; `snp_count` and `snp_penalty` fields on
+  `PrimerPair`.
+- 19 new tests for the snpcheck module.
+- README badges for CI, Python version, and license.
 
 ### Changed
 
 - Updated Dockerfile to Python 3.13 with optimized layer caching.
 - Capped Python version to `<3.14` due to pysam compatibility.
+- Added `requests` to dependencies.
+
+### Removed
+
+- Legacy `snpcheck` module (multiply/bedtools dependencies).
 
 ## [0.1.1] - 13-02-2026
 

@@ -215,6 +215,17 @@ class MultiplexPickerParameters(BaseModel):
         return self
 
 
+class SnpCheckParameters(BaseModel):
+    """Parameters for SNP overlap checking."""
+
+    af_threshold: float = Field(
+        default=0.01, ge=0.0, le=1.0, description="Minimum allele frequency to flag"
+    )
+    snp_penalty_weight: float = Field(
+        default=5.0, ge=0.0, description="Penalty per SNP overlapping a primer"
+    )
+
+
 class DesignerConfig(BaseModel):
     """Complete configuration for multiplex primer panel design."""
 
@@ -227,6 +238,9 @@ class DesignerConfig(BaseModel):
     pcr_conditions: PCRConditions = Field(default_factory=PCRConditions)
     multiplex_picker_parameters: MultiplexPickerParameters = Field(
         default_factory=MultiplexPickerParameters
+    )
+    snp_check_parameters: SnpCheckParameters = Field(
+        default_factory=SnpCheckParameters
     )
 
     @classmethod
