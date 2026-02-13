@@ -129,14 +129,33 @@ def run(
             help="Bases to extract around each junction.",
         ),
     ] = 200,
+    parallel: Annotated[
+        bool,
+        typer.Option(
+            "--parallel",
+            help="Run panels in parallel (only applies to multi-panel input).",
+        ),
+    ] = False,
+    max_workers: Annotated[
+        int | None,
+        typer.Option(
+            "--max-workers",
+            help="Max parallel workers for multi-panel mode.",
+        ),
+    ] = None,
 ) -> None:
     """
     Run the complete multiplex primer design pipeline.
 
+    If the input CSV contains a 'Panel' column, junctions are grouped by
+    panel and each panel is designed independently. Results are saved to
+    output_dir/<panel_id>/. Use --parallel to run panels concurrently.
+
     Example:
         multiplexdesigner run -i junctions.csv -f genome.fa -o results/
     """
-    from multiplexdesigner.pipeline import run_pipeline
+    from multiplexdesigner.orchestrator import run_multi_panel
+    from multiplexdesigner.pipeline import MultiPanelResult
 
     console.print("[bold green]Multiplex Primer Designer[/bold green]")
     console.print(f"  Input:  {input_file}")
@@ -145,10 +164,12 @@ def run(
     console.print()
 
     try:
-        result = run_pipeline(
+        result = run_multi_panel(
             input_file=input_file,
             fasta_file=fasta_file,
             output_dir=output_dir,
+            parallel=parallel,
+            max_workers=max_workers,
             panel_name=panel_name,
             genome=genome,
             preset=preset,
@@ -157,19 +178,43 @@ def run(
             padding=padding,
         )
 
-        if result.success:
-            console.print()
-            console.print("[bold green]Pipeline completed successfully![/bold green]")
-            console.print(f"  Junctions:    {result.num_junctions}")
-            console.print(f"  Primer pairs: {result.num_primer_pairs}")
-            console.print(f"  Output:       {result.output_dir}")
+        if isinstance(result, MultiPanelResult):
+            if result.success:
+                console.print()
+                console.print(
+                    "[bold green]All panels completed successfully![/bold green]"
+                )
+                console.print(f"  Panels:         {len(result.panel_ids)}")
+                for pid in result.panel_ids:
+                    pr = result.panel_results[pid]
+                    console.print(
+                        f"    {pid}: {pr.num_junctions} junctions, "
+                        f"{len(pr.selected_pairs)} selected pairs"
+                    )
+                console.print(f"  Output:         {result.output_dir}")
+            else:
+                console.print()
+                console.print("[bold yellow]Some panels had errors:[/bold yellow]")
+                for pid in result.failed_panels:
+                    pr = result.panel_results[pid]
+                    for error in pr.errors:
+                        console.print(f"  [yellow]• {pid}: {error}[/yellow]")
         else:
-            console.print()
-            console.print(
-                "[bold yellow]Pipeline completed with warnings:[/bold yellow]"
-            )
-            for error in result.errors:
-                console.print(f"  [yellow]• {error}[/yellow]")
+            if result.success:
+                console.print()
+                console.print(
+                    "[bold green]Pipeline completed successfully![/bold green]"
+                )
+                console.print(f"  Junctions:    {result.num_junctions}")
+                console.print(f"  Primer pairs: {result.num_primer_pairs}")
+                console.print(f"  Output:       {result.output_dir}")
+            else:
+                console.print()
+                console.print(
+                    "[bold yellow]Pipeline completed with warnings:[/bold yellow]"
+                )
+                for error in result.errors:
+                    console.print(f"  [yellow]• {error}[/yellow]")
 
     except FileNotFoundError as e:
         console.print(f"[bold red]Error: {e}[/bold red]")

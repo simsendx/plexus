@@ -15,7 +15,6 @@ from loguru import logger
 from multiplexdesigner.designer.multiplexpanel import (
     MultiplexPanel,
     PrimerDesigns,
-    panel_factory,
 )
 from multiplexdesigner.designer.thal import (
     calculate_single_primer_thermodynamics,
@@ -37,6 +36,11 @@ def design_primers(
     Args:
         panel: An instantiated MultiplexPanel object created with panel_factory.
         method: Design algorithm to use; defaults to "simsen".
+            - "simsen": Custom thermodynamic-aware design (recommended, production-ready).
+            - "primer3py": EXPERIMENTAL — Uses primer3-py bindings. Does not yet
+              produce PrimerPair objects, so downstream multiplex optimization will
+              receive no candidates. Under active development.
+            - "primer3": NOT IMPLEMENTED — Placeholder for local primer3 execution.
         parallel: Boolean. If true, uses parallelized functions. Default is False.
 
     Returns:
@@ -45,9 +49,17 @@ def design_primers(
     if method == "simsen":
         return design_multiplex_primers(panel, parallel=parallel)
     if method == "primer3py":
+        logger.warning(
+            "The 'primer3py' design method is experimental and does not yet "
+            "produce PrimerPair objects. Downstream multiplex optimization will "
+            "receive no candidates. Use 'simsen' for a complete pipeline run."
+        )
         return primer3py_design_primers(panel)
     if method == "primer3":
-        return primer3_design_primers(panel)
+        raise NotImplementedError(
+            "The 'primer3' design method is not yet implemented. "
+            "Use 'simsen' (recommended) or 'primer3py' (experimental)."
+        )
     raise ValueError(f"Unknown design method: {method}")
 
 
@@ -224,7 +236,12 @@ def design_multiplex_primers(
 
 
 # ================================================================================
-# Function to run primer3-python bindings
+# EXPERIMENTAL: primer3-py bindings design method
+#
+# This method uses the primer3-py Python bindings to design primer pairs.
+# It currently stores raw primer3 output on each junction but does NOT create
+# PrimerPair objects, so downstream steps (multiplex optimization, BLAST) will
+# have no candidates to work with. Under active development.
 # ================================================================================
 
 
@@ -232,7 +249,13 @@ def primer3py_design_primers(
     panel: MultiplexPanel, thal: int = 1, save_designs: bool = False, outdir: str = None
 ) -> MultiplexPanel:
     """
-    Run primer3 design on the junctions and retain the top primers for each junction.
+    EXPERIMENTAL: Run primer3 design on the junctions and retain the top primers.
+
+    .. warning::
+        This method does not yet produce ``PrimerPair`` objects. The raw primer3
+        output is stored as ``junction.primer3_designs`` but the ``junction.primer_pairs``
+        list remains empty. Downstream multiplex optimization will therefore receive
+        no candidates.
 
     Returns a MultiplexPanel object.
     """
@@ -398,47 +421,20 @@ def primer3py_design_primers(
 
 
 # ================================================================================
-# Function to run primer3 locally (requires primer3 installation)
+# NOT IMPLEMENTED: Local primer3 execution
+#
+# Placeholder for running a local primer3 binary. This requires primer3 to be
+# installed on the system PATH and is not yet implemented.
 # ================================================================================
 
 
 def primer3_design_primers(panel: MultiplexPanel) -> MultiplexPanel:
     """
-    Run primer3 locally (not implemented)
+    NOT IMPLEMENTED: Run primer3 locally.
+
+    Raises ``NotImplementedError``. Use ``design_method="simsen"`` instead.
     """
-    raise NotImplementedError("Local primer3 execution not yet implemented")
-
-
-# ================================================================================
-# Main Execution Logic
-# ================================================================================
-
-try:
-    from multiplexdesigner.utils.pretty_cli import display_welcome
-except ImportError:
-    try:
-        from multiplexdesigner.cli import display_welcome
-    except ImportError:
-
-        def display_welcome():
-            pass
-
-
-def run_designer(
-    design_input_file: str = "./data/junctions.csv",
-    fasta_file: str = "/Users/ctosimsen/Documents/hg38/hg38.fa",
-):
-    display_welcome()
-
-    panel = design_primers(
-        panel=panel_factory(
-            name="test_panel",
-            genome="hg38",
-            design_input_file=design_input_file,
-            fasta_file=fasta_file,
-            padding=200,
-        ),
-        method="simsen",
+    raise NotImplementedError(
+        "Local primer3 execution is not yet implemented. "
+        "Use 'simsen' (recommended) or 'primer3py' (experimental)."
     )
-
-    return panel

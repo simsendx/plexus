@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from multiplexdesigner.designer.multiplexpanel import MultiplexPanel
+from multiplexdesigner.designer.multiplexpanel import JunctionInput, MultiplexPanel
 
 
 class TestMultiplexPanelImport:
@@ -88,3 +88,50 @@ class TestMultiplexPanelImport:
             assert panel.junctions[0].name == "Junction1"
         finally:
             Path(temp_path).unlink()
+
+    def test_import_csv_with_panel_column(self):
+        """CSV with Panel column imports without error."""
+        csv_content = (
+            "Name,Chrom,Five_Prime_Coordinate,Three_Prime_Coordinate,Panel\n"
+            "J1,chr1,100,200,PanelA\n"
+            "J2,chr2,300,400,PanelB\n"
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write(csv_content)
+            temp_path = f.name
+
+        try:
+            panel = MultiplexPanel("test_panel", "hg38")
+            panel.import_junctions_csv(temp_path)
+            assert len(panel.junctions) == 2
+        finally:
+            Path(temp_path).unlink()
+
+
+class TestJunctionInputModel:
+    """Tests for the JunctionInput Pydantic model."""
+
+    def test_panel_field_optional_absent(self):
+        """JunctionInput works without Panel field."""
+        j = JunctionInput(
+            **{
+                "Name": "J1",
+                "Chrom": "chr1",
+                "Five_Prime_Coordinate": 100,
+                "Three_Prime_Coordinate": 200,
+            }
+        )
+        assert j.panel is None
+
+    def test_panel_field_optional_present(self):
+        """JunctionInput accepts Panel field."""
+        j = JunctionInput(
+            **{
+                "Name": "J1",
+                "Chrom": "chr1",
+                "Five_Prime_Coordinate": 100,
+                "Three_Prime_Coordinate": 200,
+                "Panel": "MyPanel",
+            }
+        )
+        assert j.panel == "MyPanel"

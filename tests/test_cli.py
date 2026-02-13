@@ -123,7 +123,7 @@ class TestRunCommand:
         finally:
             Path(csv_path).unlink()
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_run_success(self, mock_run_pipeline):
         """Test successful run with mocked pipeline."""
         # Create mock result
@@ -179,7 +179,7 @@ class TestRunCommand:
             Path(csv_path).unlink()
             Path(fasta_path).unlink()
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_run_with_warnings(self, mock_run_pipeline):
         """Test run that completes with warnings."""
         mock_panel = MagicMock()
@@ -216,7 +216,7 @@ class TestRunCommand:
             Path(csv_path).unlink()
             Path(fasta_path).unlink()
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_run_with_all_options(self, mock_run_pipeline):
         """Test run with all CLI options specified."""
         mock_panel = MagicMock()
@@ -285,7 +285,7 @@ class TestRunCommand:
             Path(fasta_path).unlink()
             Path(config_path).unlink()
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_run_skip_blast(self, mock_run_pipeline):
         """Test that --skip-blast flag is passed correctly."""
         mock_panel = MagicMock()
@@ -328,7 +328,7 @@ class TestRunCommand:
             Path(csv_path).unlink()
             Path(fasta_path).unlink()
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_run_pipeline_exception(self, mock_run_pipeline):
         """Test that pipeline exceptions are handled gracefully."""
         mock_run_pipeline.side_effect = Exception("Pipeline crashed!")
@@ -359,7 +359,7 @@ class TestRunCommand:
 class TestCLIShortFlags:
     """Tests for short flag aliases."""
 
-    @patch("multiplexdesigner.pipeline.run_pipeline")
+    @patch("multiplexdesigner.orchestrator.run_pipeline")
     def test_short_flags(self, mock_run_pipeline):
         """Test that short flags work correctly."""
         mock_panel = MagicMock()

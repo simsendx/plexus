@@ -54,6 +54,56 @@ class PipelineResult:
         return sum(len(j.primer_pairs) for j in self.panel.junctions if j.primer_pairs)
 
 
+@dataclass
+class MultiPanelResult:
+    """Aggregated result across multiple panel pipeline runs."""
+
+    panel_results: dict[str, PipelineResult]
+    output_dir: Path
+    panel_ids: list[str]
+
+    @property
+    def success(self) -> bool:
+        """True if all panels completed without errors."""
+        return all(r.success for r in self.panel_results.values())
+
+    @property
+    def failed_panels(self) -> list[str]:
+        """Panel IDs that had errors."""
+        return [pid for pid, r in self.panel_results.items() if not r.success]
+
+    @property
+    def total_junctions(self) -> int:
+        """Total junctions across all panels."""
+        return sum(r.num_junctions for r in self.panel_results.values())
+
+    @property
+    def total_selected_pairs(self) -> int:
+        """Total selected primer pairs across all panels."""
+        return sum(len(r.selected_pairs) for r in self.panel_results.values())
+
+    def summary_dict(self) -> dict:
+        """Return a JSON-serializable summary across all panels."""
+        return {
+            "num_panels": len(self.panel_ids),
+            "panel_ids": self.panel_ids,
+            "total_junctions": self.total_junctions,
+            "total_selected_pairs": self.total_selected_pairs,
+            "all_successful": self.success,
+            "failed_panels": self.failed_panels,
+            "per_panel": {
+                pid: {
+                    "junctions": r.num_junctions,
+                    "primer_pairs": r.num_primer_pairs,
+                    "selected_pairs": len(r.selected_pairs),
+                    "success": r.success,
+                    "errors": r.errors,
+                }
+                for pid, r in self.panel_results.items()
+            },
+        }
+
+
 def run_pipeline(
     input_file: str | Path,
     fasta_file: str | Path,
@@ -133,37 +183,31 @@ def run_pipeline(
         config_dict=config_dict,
     )
 
-    # Initialize result
-    result = PipelineResult(
-        panel=None,  # type: ignore[arg-type]
-        output_dir=output_dir,
-        config=config,
-    )
-
     # =========================================================================
     # Step 1: Create panel and load junctions
     # =========================================================================
     logger.info(f"Creating panel '{panel_name}' with {genome} reference...")
 
-    try:
-        panel = panel_factory(
-            name=panel_name,
-            genome=genome,
-            design_input_file=str(input_file),
-            fasta_file=str(fasta_file),
-            preset=preset,
-            config_file=str(config_path) if config_path else None,
-            padding=padding,
-        )
-        # Update panel config to use our loaded config
-        panel.config = config
-        result.panel = panel
-        result.steps_completed.append("panel_created")
-        logger.info(f"Loaded {len(panel.junctions)} junctions")
-    except Exception as e:
-        logger.error(f"Failed to create panel: {e}")
-        result.errors.append(f"Panel creation failed: {e}")
-        raise
+    panel = panel_factory(
+        name=panel_name,
+        genome=genome,
+        design_input_file=str(input_file),
+        fasta_file=str(fasta_file),
+        preset=preset,
+        config_file=str(config_path) if config_path else None,
+        padding=padding,
+    )
+    # Update panel config to use our loaded config
+    panel.config = config
+    logger.info(f"Loaded {len(panel.junctions)} junctions")
+
+    # Initialize result now that we have a valid panel
+    result = PipelineResult(
+        panel=panel,
+        output_dir=output_dir,
+        config=config,
+        steps_completed=["panel_created"],
+    )
 
     # =========================================================================
     # Step 2: Design primers

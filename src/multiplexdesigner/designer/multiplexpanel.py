@@ -33,6 +33,7 @@ class JunctionInput(BaseModel):
     chrom: str = Field(alias="Chrom")
     five_prime: int = Field(alias="Five_Prime_Coordinate")
     three_prime: int = Field(alias="Three_Prime_Coordinate")
+    panel: str | None = Field(default=None, alias="Panel")
 
 
 # ================================================================================
