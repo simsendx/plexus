@@ -5,6 +5,17 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 17-02-2026
+
+### Added
+
+- End-to-end integration tests exercising the full pipeline: load → merge → design → SNP check → optimize → output.
+- 8 new integration tests in `tests/test_integration.py` marked with `@pytest.mark.integration`.
+- Test fixture files in `tests/data/` (~6 KB): small FASTA contigs, remapped gnomAD VCF, and junction CSV extracted from real reference data.
+- Fixture creation script `scripts/create_test_fixtures.py` for reproducing test data from full reference files.
+- Session-scoped shared fixtures in `tests/conftest.py`.
+- `integration` pytest marker registered in `pyproject.toml` for selective test runs (`pytest -m integration`, `pytest -m "not integration"`).
+
 ## [0.2.1] - 17-02-2026
 
 ### Added

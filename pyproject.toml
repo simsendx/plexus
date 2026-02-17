@@ -70,3 +70,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "--cov=plexus --cov-report=term-missing"
 testpaths = ["tests"]
+markers = [
+    "integration: end-to-end integration tests (may be slow)",
+]

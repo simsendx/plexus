@@ -9,12 +9,6 @@ __pycache__/
 *.DS_STORE
 .out/
 
-*.gz
-*.tbi
-*.vcf
-*.vcf.gz
-*.vcf.tbi
-
 CLAUDE.md
 GEMINI.md
 
