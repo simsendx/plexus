@@ -267,9 +267,12 @@ def oligotm(
         Tm = delta_H / (delta_S + GAS_CONSTANT * math.log(dna_conc / 4e9)) - T_KELVIN
         bound = (1 / (1 + math.sqrt(1 / ((dna_conc / 4e9) * ka)))) * 100
 
-    # Apply DMSO and formamide corrections
+    # Apply DMSO correction
     if dmso_conc > 0.0:
         Tm -= dmso_conc * dmso_fact
+
+    # Apply formamide correction (independent of DMSO)
+    if formamide_conc > 0.0:
         Tm += (0.453 * gc_count / seq_len - 2.88) * formamide_conc
 
     return TmResult(Tm=Tm, bound=bound, ddG=ddG)
@@ -397,7 +400,8 @@ def long_seq_tm(
         - 600.0 / length
     )
 
-    return TmResult(Tm=Tm, bound=0.0)
+    # GC% formula has no thermodynamic ddG; use 0.0 (matches bound=0.0 convention)
+    return TmResult(Tm=Tm, bound=0.0, ddG=0.0)
 
 
 def seqtm(

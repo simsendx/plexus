@@ -146,47 +146,6 @@ class PrimerPair:
         return penalty
 
 
-# TODO: import primer pairs from primer3 output. Wouldn't it be better to design
-# forward and reverse primers separately instead of in pairs, and only consider pairing
-# while also checking for primer dimers?
-
-
-def load_primer_pairs_from_primer3_output(primer3_output, add_target=None):
-    """
-    Given an output file from primer3, return a list of
-    PrimerPair objects
-
-    params
-        primer3_output_path: str
-            Path to an output file produced by primer3. This will
-            contain information a series of primer pairs, in a format
-            <key>=<value>.
-        add_target: Target [optional]
-            A Target object, containing information about on which target
-            primer3 run.
-
-    """
-
-    primer_pairs = []
-    directions = ["LEFT", "RIGHT"]
-
-    for row in primer3_output:
-        for d in directions:
-            pair = {}
-            pair[d] = Primer(
-                seq=row["LEFT"],
-                direction="F" if d == "LEFT" else "R",
-                start=1,
-                length=2,
-                tm=1,
-                gc=1,
-            )
-        primer_pair = PrimerPair(F=pair["LEFT"], R=pair["RIGHT"])
-        primer_pairs.append(primer_pair)
-
-    return primer_pairs
-
-
 def get_primer_dict(junction):
     """
     Extract unique primer pairs from a junction.

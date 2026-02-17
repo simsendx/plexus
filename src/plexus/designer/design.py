@@ -164,26 +164,31 @@ def design_multiplex_primers(
                 right_kmers = kmers
 
         # Warn or raise error if too few kmers found.
+        if len(left_kmers) == 0:
+            logger.error("No left kmers found.")
+            raise ValueError("No left kmers found.")
         if len(left_kmers) < 100:
             msg = "Fewer than 100 left kmers found."
             logger.warning(msg)
             warnings.warn(msg, stacklevel=2)
-        elif len(left_kmers) == 0:
-            logger.error("No left kmers found.")
-            raise ValueError("No left kmers found.")
-        if len(right_kmers) < 100:
-            logger.warning("Fewer than 100 right kmers found.")
-            warnings.warn("Fewer than 100 right kmers found.", stacklevel=2)
-        elif len(right_kmers) == 0:
+
+        if len(right_kmers) == 0:
             logger.error("No right kmers found.")
             raise ValueError("No right kmers found.")
+        if len(right_kmers) < 100:
+            msg = "Fewer than 100 right kmers found."
+            logger.warning(msg)
+            warnings.warn(msg, stacklevel=2)
 
         # Calculate thermodynamic properties of candidate primers and remove low quality primers based on config.
         if parallel:
             # Run both left and right primers at the same time
             (
-                left_primers,
-                right_primers,
+                (left_primers, left_eval_string),
+                (
+                    right_primers,
+                    right_eval_string,
+                ),
             ) = calculate_single_primer_thermodynamics_parallel(
                 left_kmers=left_kmers,
                 right_kmers=right_kmers,

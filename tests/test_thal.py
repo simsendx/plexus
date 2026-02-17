@@ -4,7 +4,7 @@
 
 import pytest
 
-from plexus.designer.thal import oligotm, seqtm, symmetry
+from plexus.designer.thal import TmResult, oligotm, seqtm, symmetry
 
 
 class TestThal:
@@ -81,6 +81,24 @@ class TestThal:
         assert symmetry("AAAA") is False
         assert symmetry("ACGTA") is False  # Odd length
         assert symmetry("AATTGG") is False
+
+    def test_seqtm_long_sequence_uses_gc_formula(self):
+        """Test that seqtm uses the GC% formula for sequences > 60bp."""
+        seq = "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC"
+        assert len(seq) > 60
+        result = seqtm(seq)
+        assert isinstance(result, TmResult)
+        assert isinstance(result.Tm, float)
+        assert result.bound == 0.0
+        assert result.ddG == 0.0
+
+    def test_formamide_correction_without_dmso(self):
+        """Test that formamide correction applies even when DMSO is 0."""
+        seq = "CAGTGGCTCTATTGAATTTCTGTG"
+        baseline = oligotm(seq, dmso_conc=0.0, formamide_conc=0.0)
+        with_formamide = oligotm(seq, dmso_conc=0.0, formamide_conc=1.5)
+        # Formamide lowers Tm (the correction term is negative for typical GC%)
+        assert with_formamide.Tm < baseline.Tm
 
     def test_annealing_temperature_effect(self):
         """Test that lower annealing temp gives higher bound fraction."""

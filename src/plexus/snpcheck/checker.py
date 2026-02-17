@@ -35,7 +35,7 @@ def _get_allele_frequency(record):
     """
     if "AF" in record.info:
         af_values = record.info["AF"]
-        if isinstance(af_values, (list, tuple)):
+        if isinstance(af_values, list | tuple):
             return max(float(v) for v in af_values)
         return float(af_values)
 
@@ -109,49 +109,46 @@ def run_snp_check(
     logger.info(f"Running SNP check with VCF: {vcf_path}")
     logger.info(f"AF threshold: {af_threshold}, penalty weight: {snp_penalty_weight}")
 
-    vcf = pysam.VariantFile(vcf_path)
+    with pysam.VariantFile(vcf_path) as vcf:
+        total_snps = 0
+        primers_with_snps = 0
 
-    total_snps = 0
-    primers_with_snps = 0
-
-    for junction in panel.junctions:
-        if not junction.primer_pairs:
-            continue
-        if not hasattr(junction, "design_start") or junction.design_start is None:
-            logger.warning(
-                f"No design_start for junction {junction.name}, skipping SNP check"
-            )
-            continue
-
-        for pair in junction.primer_pairs:
-            pair_snp_count = 0
-
-            for primer in (pair.forward, pair.reverse):
-                chrom, gstart, gend = _primer_genomic_coords(primer, junction)
-                count, positions = _count_snps_in_region(
-                    vcf, chrom, gstart, gend, af_threshold
+        for junction in panel.junctions:
+            if not junction.primer_pairs:
+                continue
+            if not hasattr(junction, "design_start") or junction.design_start is None:
+                logger.warning(
+                    f"No design_start for junction {junction.name}, skipping SNP check"
                 )
+                continue
 
-                primer.snp_count = count
-                pair_snp_count += count
+            for pair in junction.primer_pairs:
+                pair_snp_count = 0
 
-                if count > 0:
-                    primers_with_snps += 1
-                    total_snps += count
-                    logger.debug(
-                        f"Primer {primer.name}: {count} SNPs at positions {positions}"
+                for primer in (pair.forward, pair.reverse):
+                    chrom, gstart, gend = _primer_genomic_coords(primer, junction)
+                    count, positions = _count_snps_in_region(
+                        vcf, chrom, gstart, gend, af_threshold
                     )
 
-            pair.snp_count = pair_snp_count
-            pair.snp_penalty = pair_snp_count * snp_penalty_weight
+                    primer.snp_count = count
+                    pair_snp_count += count
 
-            if pair.snp_penalty > 0:
-                if pair.pair_penalty is not None:
-                    pair.pair_penalty += pair.snp_penalty
-                else:
-                    pair.pair_penalty = pair.snp_penalty
+                    if count > 0:
+                        primers_with_snps += 1
+                        total_snps += count
+                        logger.debug(
+                            f"Primer {primer.name}: {count} SNPs at positions {positions}"
+                        )
 
-    vcf.close()
+                pair.snp_count = pair_snp_count
+                pair.snp_penalty = pair_snp_count * snp_penalty_weight
+
+                if pair.snp_penalty > 0:
+                    if pair.pair_penalty is not None:
+                        pair.pair_penalty += pair.snp_penalty
+                    else:
+                        pair.pair_penalty = pair.snp_penalty
 
     logger.info(
         f"SNP check complete: {total_snps} SNPs found across {primers_with_snps} primers"

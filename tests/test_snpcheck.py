@@ -188,6 +188,7 @@ class TestRunSnpCheck:
 
         with patch("pysam.VariantFile") as mock_variant_file:
             mock_vcf = MagicMock()
+            mock_vcf.__enter__.return_value = mock_vcf
             mock_vcf.fetch.return_value = [mock_record]
             mock_variant_file.return_value = mock_vcf
 
@@ -240,6 +241,23 @@ class TestRunSnpCheck:
 
         # fetch should never be called
         mock_vcf.fetch.assert_not_called()
+
+    def test_vcf_closed_on_exception(self):
+        """VCF file handle is properly released even when processing raises."""
+        panel = _make_panel()
+
+        with patch("pysam.VariantFile") as mock_variant_file:
+            mock_vcf = MagicMock()
+            mock_vcf.__enter__.return_value = mock_vcf
+            mock_vcf.__exit__.return_value = False
+            mock_vcf.fetch.side_effect = RuntimeError("unexpected error")
+            mock_variant_file.return_value = mock_vcf
+
+            with pytest.raises(RuntimeError, match="unexpected error"):
+                run_snp_check(panel=panel, vcf_path="/fake/dbsnp.vcf.gz")
+
+            # Context manager __exit__ must have been called
+            mock_vcf.__exit__.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +332,32 @@ class TestWriteRegionsBed:
 
         content = bed.read_text().strip()
         assert content == ""
+
+    def test_fallback_without_design_end(self, tmp_path):
+        """When design_end is None, end should be max(start, end) + padding."""
+        junction = _make_junction(design_start=1000, chrom="chr7")
+        junction.design_end = None
+        junction.start = 1200
+        junction.end = 1200
+        panel = _make_panel([junction])
+
+        bed = _write_regions_bed(panel, tmp_path, padding=200)
+        lines = bed.read_text().strip().split("\n")
+        parts = lines[0].split("\t")
+        assert int(parts[2]) == 1200 + 200  # max(1200, 1200) + 200
+
+    def test_fallback_asymmetric_junction(self, tmp_path):
+        """When end > start, max() picks the larger coordinate."""
+        junction = _make_junction(design_start=1000, chrom="chr7")
+        junction.design_end = None
+        junction.start = 1150
+        junction.end = 1250
+        panel = _make_panel([junction])
+
+        bed = _write_regions_bed(panel, tmp_path, padding=150)
+        lines = bed.read_text().strip().split("\n")
+        parts = lines[0].split("\t")
+        assert int(parts[2]) == 1250 + 150  # max(1150, 1250) + 150
 
     def test_multiple_junctions(self, tmp_path):
         junctions = [

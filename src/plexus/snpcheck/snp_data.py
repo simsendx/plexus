@@ -67,7 +67,7 @@ def _write_regions_bed(panel: MultiplexPanel, tmpdir: Path, padding: int = 200) 
             if hasattr(junction, "design_end") and junction.design_end is not None:
                 end = junction.design_end + padding
             else:
-                end = junction.design_start + padding * 2 + padding
+                end = max(junction.start, junction.end) + padding
 
             f.write(f"{chrom}\t{start}\t{end}\n")
 
