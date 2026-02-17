@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the experimental `primer3py_design_primers` function and the `"primer3py"` / `"primer3"` design method branches from `design.py`. Only the `"simsen"` design method remains.
 - Removed dead code tied to the primer3py pathway: `get_primer_dict()` from `primer.py`, and `create_primer_dataframe()` / `convert_primer_data_to_tables()` from `utils.py`.
 - Removed unused `import primer3`, `import json`, `import os`, and `import pandas` from affected modules.
+- Added `CITATIONS.md`
+- Changed license to GPL-2.0 or later to reflect package dependencies
 
 ## [0.2.2] - 17-02-2026
 
