@@ -250,7 +250,6 @@ def run_pipeline(
     # Step 3.5: SNP overlap check (optional)
     # =========================================================================
     snp_config = config.snp_check_parameters
-    _snp_vcf = str(snp_vcf) if snp_vcf else None
     _run_snpcheck = not skip_snpcheck
 
     if _run_snpcheck:
@@ -260,37 +259,28 @@ def run_pipeline(
             else snp_config.af_threshold
         )
 
-        if _snp_vcf:
-            logger.info("Running SNP check with local VCF...")
-            try:
-                from plexus.snpcheck.checker import run_snp_check
+        try:
+            from plexus.snpcheck.snp_data import get_snp_vcf
 
-                run_snp_check(
-                    panel=panel,
-                    vcf_path=_snp_vcf,
-                    af_threshold=af_thresh,
-                    snp_penalty_weight=snp_config.snp_penalty_weight,
-                    padding=padding,
-                )
-                result.steps_completed.append("snp_checked_vcf")
-            except Exception as e:
-                logger.error(f"SNP check (VCF) failed: {e}")
-                result.errors.append(f"SNP check (VCF) failed: {e}")
-        else:
-            logger.info("Running SNP check via Ensembl REST API...")
-            try:
-                from plexus.snpcheck.ensembl import run_snp_check_api
+            resolved_vcf = get_snp_vcf(
+                panel=panel,
+                output_dir=output_dir,
+                user_vcf=snp_vcf,
+                padding=padding,
+            )
 
-                run_snp_check_api(
-                    panel=panel,
-                    af_threshold=af_thresh,
-                    snp_penalty_weight=snp_config.snp_penalty_weight,
-                    padding=padding,
-                )
-                result.steps_completed.append("snp_checked_api")
-            except Exception as e:
-                logger.error(f"SNP check (API) failed: {e}")
-                result.errors.append(f"SNP check (API) failed: {e}")
+            from plexus.snpcheck.checker import run_snp_check
+
+            run_snp_check(
+                panel=panel,
+                vcf_path=str(resolved_vcf),
+                af_threshold=af_thresh,
+                snp_penalty_weight=snp_config.snp_penalty_weight,
+            )
+            result.steps_completed.append("snp_checked")
+        except Exception as e:
+            logger.error(f"SNP check failed: {e}")
+            result.errors.append(f"SNP check failed: {e}")
     else:
         logger.info("Skipping SNP check")
         result.steps_completed.append("snp_check_skipped")

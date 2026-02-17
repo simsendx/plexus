@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- SNP overlap checking for primer binding sites with two backends:
-  - Ensembl REST API (default, no setup required)
-  - Local tabix-indexed VCF/BCF via pysam
+- SNP overlap checking for primer binding sites using local tabix-indexed
+  VCF/BCF via pysam.
 - New CLI options: `--snp-vcf`, `--skip-snpcheck`, `--snp-af-threshold`.
 - `SnpCheckParameters` configuration model with `af_threshold` and
   `snp_penalty_weight` settings.
@@ -26,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated Dockerfile to Python 3.13 with optimized layer caching.
 - Capped Python version to `<3.14` due to pysam compatibility.
-- Added `requests` to dependencies.
 
 ### Removed
 

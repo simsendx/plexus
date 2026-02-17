@@ -86,7 +86,6 @@ def run_snp_check(
     vcf_path: str,
     af_threshold: float = 0.01,
     snp_penalty_weight: float = 5.0,
-    padding: int = 200,
 ) -> None:
     """Check all primer pairs in the panel for SNP overlaps using a local VCF.
 
@@ -104,8 +103,6 @@ def run_snp_check(
         Minimum allele frequency (default 0.01 = 1%).
     snp_penalty_weight : float
         Penalty per SNP (default 5.0).
-    padding : int
-        Padding used during design region extraction (unused, kept for API compat).
     """
     import pysam
 

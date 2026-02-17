@@ -145,7 +145,7 @@ def run(
         Path | None,
         typer.Option(
             "--snp-vcf",
-            help="Path to tabix-indexed VCF/BCF for SNP checking. If omitted, uses Ensembl REST API.",
+            help="Path to tabix-indexed VCF for SNP checking. If omitted, uses bundled gnomAD AF-only VCF.",
         ),
     ] = None,
     skip_snpcheck: Annotated[
@@ -244,6 +244,41 @@ def run(
     except Exception as e:
         console.print(f"[bold red]Pipeline failed: {e}[/bold red]")
         raise typer.Exit(code=1) from e
+
+
+@app.command()
+def download_resources(
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help="Re-download even if files already exist.",
+        ),
+    ] = False,
+) -> None:
+    """Download the gnomAD AF-only VCF for SNP checking."""
+    from plexus.snpcheck.resources import download_gnomad_vcf, get_cache_dir
+
+    console.print(f"[bold green]Plexus[/bold green] — downloading SNP resources")
+    console.print(f"  Cache directory: {get_cache_dir()}")
+    console.print()
+
+    try:
+        vcf_path = download_gnomad_vcf(force=force)
+        console.print()
+        console.print(f"[bold green]Done![/bold green] VCF saved to {vcf_path}")
+    except Exception as e:
+        console.print(f"[bold red]Download failed: {e}[/bold red]")
+        raise typer.Exit(code=1) from e
+
+
+@app.command()
+def status() -> None:
+    """Show Plexus version and resource status."""
+    from plexus.snpcheck.resources import resource_status_message
+
+    console.print(f"[bold green]Plexus[/bold green] version {__version__}")
+    console.print(f"  {resource_status_message()}")
 
 
 if __name__ == "__main__":
