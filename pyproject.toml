@@ -9,7 +9,7 @@ description = "Package for designing multiplex PCR panels"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10,<3.14"
-authors = [{ name = "Stefan Filges", email = "stefan@simsendiagnostics.com" }]
+authors = [{ name = "Stefan Filges", email = "stefan.filges@pm.me" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -70,6 +70,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "--cov=plexus --cov-report=term-missing"
 testpaths = ["tests"]
-markers = [
-    "integration: end-to-end integration tests (may be slow)",
-]
+markers = ["integration: end-to-end integration tests (may be slow)"]
