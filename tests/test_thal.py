@@ -4,7 +4,17 @@
 
 import pytest
 
-from plexus.designer.thal import TmResult, oligotm, seqtm, symmetry
+from plexus.designer.thal import (
+    InvalidConcentrationError,
+    InvalidSequenceError,
+    TmResult,
+    divalent_to_monovalent,
+    end_oligodg,
+    oligodg,
+    oligotm,
+    seqtm,
+    symmetry,
+)
 
 
 class TestThal:
@@ -111,3 +121,43 @@ class TestThal:
         assert result_low_temp.bound > result_high_temp.bound
         # Tm should be the same regardless of annealing temp
         assert result_low_temp.Tm == pytest.approx(result_high_temp.Tm, abs=0.1)
+
+
+class TestOligodg:
+    def test_known_sequence(self):
+        dg = oligodg("ACGT")
+        assert isinstance(dg, float)
+        assert dg == oligodg("ACGT")
+
+    def test_too_short(self):
+        with pytest.raises(InvalidSequenceError):
+            oligodg("A")
+
+
+class TestEndOligodg:
+    def test_shorter_than_length(self):
+        """Seq shorter than length returns oligodg(full seq)."""
+        assert end_oligodg("ACGT", 10) == oligodg("ACGT")
+
+    def test_longer_than_length(self):
+        """Returns oligodg of last 3 bases."""
+        assert end_oligodg("AACGT", 3) == oligodg("CGT")
+
+
+class TestDivalentToMonovalent:
+    def test_zero_divalent(self):
+        assert divalent_to_monovalent(0, 0.6) == 0.0
+
+    def test_negative_divalent(self):
+        with pytest.raises(InvalidConcentrationError):
+            divalent_to_monovalent(-1.0, 0.0)
+
+
+class TestOligotmErrors:
+    def test_too_short(self):
+        with pytest.raises(InvalidSequenceError):
+            oligotm("A")
+
+    def test_invalid_chars(self):
+        with pytest.raises(InvalidSequenceError):
+            oligotm("ACGTXYZ")

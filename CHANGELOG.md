@@ -5,6 +5,29 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 17-02-2026
+
+### Added
+
+- `download-resources` CLI command for downloading and managing gnomAD VCF resources.
+- `resources.py` module to handle VCF caching, environment variables (`PLEXUS_GNOMAD_VCF`), and atomic downloads.
+- Progress bar visualization for large VCF downloads using `rich`.
+
+### Changed
+
+- Refactored `snp_data.py` to use local gnomAD VCFs instead of Ensembl API.
+- Replaced Ensembl REST API dependency with direct VCF access for improved reliability and speed.
+
+### Fixed
+
+- **Critical**: Fixed a file handle leak in `checker.py` by using a context manager for `pysam.VariantFile`.
+- Fixed incorrect end coordinate calculation in `snp_data.py` fallback logic (now uses `max(start, end) + padding`).
+- Fixed linting errors and formatting.
+
+### Removed
+
+- `src/plexus/snpcheck/ensembl.py` and associated Ensembl API logic.
+
 ## [0.2.0] - 13-02-2026
 
 ### Added

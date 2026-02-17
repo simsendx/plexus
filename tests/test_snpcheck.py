@@ -226,6 +226,50 @@ class TestRunSnpCheck:
         assert pair.snp_penalty == 0.0
         assert pair.pair_penalty == original_penalty
 
+    def test_skips_junction_with_empty_primer_pairs(self):
+        """Junction with primer_pairs=[] is skipped without error."""
+        junction = _make_junction()
+        junction.primer_pairs = []
+        panel = _make_panel([junction])
+
+        with patch("pysam.VariantFile") as mock_variant_file:
+            mock_vcf = MagicMock()
+            mock_vcf.__enter__.return_value = mock_vcf
+            mock_vcf.__exit__.return_value = False
+            mock_variant_file.return_value = mock_vcf
+
+            run_snp_check(panel=panel, vcf_path="/fake/dbsnp.vcf.gz")
+
+        mock_vcf.fetch.assert_not_called()
+
+    def test_snp_penalty_assigned_when_pair_penalty_is_none(self):
+        """When pair_penalty is None, SNP penalty is assigned (not added)."""
+        pair = _make_pair()
+        pair.pair_penalty = None
+        junction = _make_junction()
+        junction.primer_pairs = [pair]
+        panel = _make_panel([junction])
+
+        mock_record = MagicMock()
+        mock_record.info = {"AF": 0.05}
+        mock_record.pos = 1015
+
+        with patch("pysam.VariantFile") as mock_variant_file:
+            mock_vcf = MagicMock()
+            mock_vcf.__enter__.return_value = mock_vcf
+            mock_vcf.__exit__.return_value = False
+            mock_vcf.fetch.return_value = [mock_record]
+            mock_variant_file.return_value = mock_vcf
+
+            run_snp_check(
+                panel=panel,
+                vcf_path="/fake/dbsnp.vcf.gz",
+                af_threshold=0.01,
+                snp_penalty_weight=5.0,
+            )
+
+        assert pair.pair_penalty == pair.snp_penalty
+
     def test_skips_junction_without_design_start(self):
         """Junctions without design_start are skipped gracefully."""
         junction = _make_junction()
