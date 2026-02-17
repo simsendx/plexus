@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sfilges/plexus/actions/workflows/ci.yml/badge.svg)](https://github.com/sfilges/plexus/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue)](https://github.com/sfilges/plexus)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 `plexus` is a Python-based bioinformatics tool designed to automate the creation of multiplex PCR panels. It specifically targets workflows like cfDNA and simsen, integrating genomic data processing, primer design (via `primer3`), and specificity checking (via BLAST) to generate optimized primer sets for multiple targets simultaneously.
 
