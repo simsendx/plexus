@@ -58,7 +58,6 @@ class InvalidConcentrationError(OligotmError):
     pass
 
 
-# TODO: Consider moving these tables to the config folder.
 # SantaLucia (1998) parameters
 # Entropy values (DS) in 0.1 cal/(K·mol)
 DS_PARAMS = {

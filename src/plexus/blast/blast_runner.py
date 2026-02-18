@@ -1,8 +1,24 @@
 import os
+import shutil
 import subprocess
 
 import pandas as pd
 from Bio import Blast
+
+
+def _check_blast_tools() -> None:
+    """Verify that the required BLAST+ executables are available on PATH."""
+    missing = [
+        tool
+        for tool in ("blastn", "makeblastdb", "blast_formatter")
+        if shutil.which(tool) is None
+    ]
+    if missing:
+        raise RuntimeError(
+            f"BLAST+ tool(s) not found on PATH: {', '.join(missing)}. "
+            "Install NCBI BLAST+ with: conda install -c bioconda blast  "
+            "or: sudo apt-get install ncbi-blast+"
+        )
 
 
 # https://github.com/JasonAHendry/multiply/blob/master/src/multiply/blast/runner.py
@@ -34,6 +50,7 @@ class BlastRunner:
         the `reference_fasta`, if not, create one.
 
         """
+        _check_blast_tools()
 
         # Define database name
         if not self.reference_fasta.endswith(
@@ -52,12 +69,19 @@ class BlastRunner:
             return self
 
         # Create database
-        cmd = "makeblastdb"
-        cmd += f" -in  {self.reference_fasta}"
-        cmd += " -dbtype nucl -parse_seqids"
-        cmd += f" -out {self.db_path}"
-
-        subprocess.run(cmd, check=True, shell=True)
+        subprocess.run(
+            [
+                "makeblastdb",
+                "-in",
+                self.reference_fasta,
+                "-dbtype",
+                "nucl",
+                "-parse_seqids",
+                "-out",
+                self.db_path,
+            ],
+            check=True,
+        )
 
         return self
 
@@ -71,16 +95,23 @@ class BlastRunner:
 
         """
 
-        # Define command
-        cmd = "blastn"
-        cmd += f" -db {self.db_path}"
-        cmd += f" -query {self.input_fasta}"
-        cmd += f" -word_size {word_size}"
-        cmd += " -outfmt 11"
-        cmd += f" -out {output_archive}"
-
         # Run
-        subprocess.run(cmd, check=True, shell=True)
+        subprocess.run(
+            [
+                "blastn",
+                "-db",
+                self.db_path,
+                "-query",
+                self.input_fasta,
+                "-word_size",
+                str(word_size),
+                "-outfmt",
+                "11",
+                "-out",
+                output_archive,
+            ],
+            check=True,
+        )
 
         # Save as instance variable, for reformattings
         self.output_archive = output_archive
@@ -94,14 +125,19 @@ class BlastRunner:
 
         """
 
-        # Define command
-        cmd = "blast_formatter"
-        cmd += f" -archive {self.output_archive}"
-        cmd += f" -outfmt '6 {self.BLAST_COLS}'"
-        cmd += f" -out {output_table}"
-
         # Run
-        subprocess.run(cmd, check=True, shell=True)
+        subprocess.run(
+            [
+                "blast_formatter",
+                "-archive",
+                self.output_archive,
+                "-outfmt",
+                f"6 {self.BLAST_COLS}",
+                "-out",
+                output_table,
+            ],
+            check=True,
+        )
 
         # Save
         self.output_table = output_table
@@ -111,10 +147,6 @@ class BlastRunner:
     def _load_as_dataframe(self):
         """
         Load tabular BLAST output as a pandas dataframe
-
-        TODO:
-        - Could optionally allow for column name remapping here,
-        and basic munging
 
         """
 

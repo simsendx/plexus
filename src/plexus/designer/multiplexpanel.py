@@ -97,10 +97,6 @@ class Junction:
     def get_primer_designs(self):
         return self.primer_designs.primer_table
 
-    # TODO: Write method to print/save self.primer_designs.primer_table
-    def save_primer_designs(self):
-        pass
-
     def find_primer_pairs(
         self,
         min_amplicon_length: int = 40,

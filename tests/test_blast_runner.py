@@ -20,12 +20,14 @@ def test_create_database_command(runner):
         with patch("os.path.isfile", return_value=False):
             runner.create_database()
 
-            # Check if makeblastdb was called
+            # Check if makeblastdb was called with the right list arguments
             args, kwargs = mock_run.call_args
             command = args[0]
             assert "makeblastdb" in command
-            assert f"-in  {runner.reference_fasta}" in command
-            assert f"-out {runner.db_path}" in command
+            assert "-in" in command
+            assert runner.reference_fasta in command
+            assert "-out" in command
+            assert runner.db_path in command
 
 
 def test_create_database_skips_if_exists(runner):
@@ -45,11 +47,15 @@ def test_run_command(runner, tmp_path):
         args, kwargs = mock_run.call_args
         command = args[0]
         assert "blastn" in command
-        assert f"-db {runner.db_path}" in command
-        assert f"-query {runner.input_fasta}" in command
-        assert "-word_size 11" in command
-        assert "-outfmt 11" in command
-        assert f"-out {output_archive}" in command
+        assert "-db" in command
+        assert runner.db_path in command
+        assert "-query" in command
+        assert runner.input_fasta in command
+        assert "-word_size" in command
+        assert "11" in command
+        assert "-outfmt" in command
+        assert "-out" in command
+        assert str(output_archive) in command
 
 
 def test_reformat_output_command(runner, tmp_path):
@@ -62,9 +68,11 @@ def test_reformat_output_command(runner, tmp_path):
         args, kwargs = mock_run.call_args
         command = args[0]
         assert "blast_formatter" in command
-        assert f"-archive {runner.output_archive}" in command
-        assert f"-out {output_table}" in command
-        assert "6 qseqid sseqid" in command
+        assert "-archive" in command
+        assert runner.output_archive in command
+        assert "-out" in command
+        assert str(output_table) in command
+        assert any("6 qseqid sseqid" in arg for arg in command)
 
 
 def test_get_dataframe(runner, tmp_path):

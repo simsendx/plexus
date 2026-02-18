@@ -5,6 +5,30 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 18-02-2026
+
+### Added
+
+- `snp_check_parameters` section added to both JSON preset config files (`designer_default_config.json`, `designer_lenient_config.json`), making them the canonical source of truth for SNP check defaults — consistent with every other config section.
+- `_check_blast_tools()` in `blast_runner.py` verifies that `blastn`, `makeblastdb`, and `blast_formatter` are on `$PATH` before any BLAST run, raising a clear `RuntimeError` with install instructions if any are missing.
+
+### Fixed
+
+- `snp_config.snp_strict` from the JSON config file is now correctly consulted in `pipeline.py` alongside the `--snp-strict` CLI flag (`if snp_strict or snp_config.snp_strict`). Previously the field was loaded but never read, so setting `"snp_strict": true` in a config file had no effect.
+
+### Changed
+
+- `run_snp_check()` — `snp_penalty_weight` is now a required keyword-only parameter (was `= 5.0`), eliminating the duplicate default that shadowed the config value.
+- `filter_snp_pairs()` — return type changed from `int` to `tuple[int, list[str]]`; the second element lists junction names where the fallback (all pairs overlapped SNPs) was triggered. `pipeline.py` and all tests updated accordingly.
+- BLAST runner subprocess calls converted from shell-string form (`shell=True`) to list-form, improving safety and cross-platform correctness.
+- Added blast and bcftools to CI workflow.
+- Updated project documentation and README.
+
+### Removed
+
+- 5 stale TODO comments with no actionable value (`blast_runner.py`, `thal.py`, `archive.py`, `multiplexpanel.py`, `design.py`).
+- Dead `save_primer_designs()` stub method on `MultiplexPanel` (was never called by the pipeline).
+
 ## [0.3.1] - 18-02-2026
 
 ### Added
@@ -126,6 +150,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `run_designer()` convenience function and associated hardcoded paths
   from `designer/design.py`. Use `run_pipeline()` or the CLI instead.
 
-## [0.1.0] - 13-02-2026
+## [0.1.0] - 19-01-2026
 
 Initial release.

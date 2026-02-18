@@ -85,7 +85,8 @@ def run_snp_check(
     panel: MultiplexPanel,
     vcf_path: str,
     af_threshold: float = 0.01,
-    snp_penalty_weight: float = 5.0,
+    *,
+    snp_penalty_weight: float,
 ) -> None:
     """Check all primer pairs in the panel for SNP overlaps using a local VCF.
 
@@ -155,7 +156,7 @@ def run_snp_check(
     )
 
 
-def filter_snp_pairs(panel: MultiplexPanel) -> int:
+def filter_snp_pairs(panel: MultiplexPanel) -> tuple[int, list[str]]:
     """Remove primer pairs that overlap any SNP (snp_count > 0).
 
     For each junction, pairs with ``snp_count == 0`` are kept.  If *all*
@@ -169,10 +170,12 @@ def filter_snp_pairs(panel: MultiplexPanel) -> int:
 
     Returns
     -------
-    int
-        Total number of primer pairs removed across all junctions.
+    tuple[int, list[str]]
+        Total number of primer pairs removed across all junctions, and a list
+        of junction names where the fallback (all pairs had SNPs) was triggered.
     """
     total_removed = 0
+    fallback_junctions: list[str] = []
 
     for junction in panel.junctions:
         if not junction.primer_pairs:
@@ -197,6 +200,7 @@ def filter_snp_pairs(panel: MultiplexPanel) -> int:
             best = min(junction.primer_pairs, key=lambda p: p.snp_count)
             removed = len(junction.primer_pairs) - 1
             junction.primer_pairs = [best]
+            fallback_junctions.append(junction.name)
             logger.warning(
                 f"Junction {junction.name}: all pairs overlap SNPs; "
                 f"keeping pair {best.pair_id} with lowest snp_count={best.snp_count}"
@@ -204,4 +208,4 @@ def filter_snp_pairs(panel: MultiplexPanel) -> int:
 
         total_removed += removed
 
-    return total_removed
+    return total_removed, fallback_junctions

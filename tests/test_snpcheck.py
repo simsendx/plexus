@@ -248,7 +248,9 @@ class TestRunSnpCheck:
             mock_vcf.__exit__.return_value = False
             mock_variant_file.return_value = mock_vcf
 
-            run_snp_check(panel=panel, vcf_path="/fake/dbsnp.vcf.gz")
+            run_snp_check(
+                panel=panel, vcf_path="/fake/dbsnp.vcf.gz", snp_penalty_weight=5.0
+            )
 
         mock_vcf.fetch.assert_not_called()
 
@@ -291,7 +293,9 @@ class TestRunSnpCheck:
             mock_variant_file.return_value = mock_vcf
 
             # Should not raise
-            run_snp_check(panel=panel, vcf_path="/fake/dbsnp.vcf.gz")
+            run_snp_check(
+                panel=panel, vcf_path="/fake/dbsnp.vcf.gz", snp_penalty_weight=5.0
+            )
 
         # fetch should never be called
         mock_vcf.fetch.assert_not_called()
@@ -308,7 +312,9 @@ class TestRunSnpCheck:
             mock_variant_file.return_value = mock_vcf
 
             with pytest.raises(RuntimeError, match="unexpected error"):
-                run_snp_check(panel=panel, vcf_path="/fake/dbsnp.vcf.gz")
+                run_snp_check(
+                    panel=panel, vcf_path="/fake/dbsnp.vcf.gz", snp_penalty_weight=5.0
+                )
 
             # Context manager __exit__ must have been called
             mock_vcf.__exit__.assert_called_once()
@@ -669,9 +675,10 @@ class TestFilterSnpPairs:
         junction.primer_pairs = [clean_pair, dirty_pair]
         panel = _make_panel([junction])
 
-        removed = filter_snp_pairs(panel)
+        removed, fallback = filter_snp_pairs(panel)
 
         assert removed == 1
+        assert fallback == []
         assert len(panel.junctions[0].primer_pairs) == 1
         assert panel.junctions[0].primer_pairs[0].pair_id == "clean_0"
 
@@ -681,12 +688,14 @@ class TestFilterSnpPairs:
         pair_b = _make_pair(pair_id="pair_b", snp_count=1)
         pair_c = _make_pair(pair_id="pair_c", snp_count=5)
         junction = _make_junction()
+        junction.name = "J_ALL_DIRTY"
         junction.primer_pairs = [pair_a, pair_b, pair_c]
         panel = _make_panel([junction])
 
-        removed = filter_snp_pairs(panel)
+        removed, fallback = filter_snp_pairs(panel)
 
         assert removed == 2
+        assert fallback == ["J_ALL_DIRTY"]
         assert len(panel.junctions[0].primer_pairs) == 1
         assert panel.junctions[0].primer_pairs[0].pair_id == "pair_b"
 
@@ -696,9 +705,10 @@ class TestFilterSnpPairs:
         junction.primer_pairs = []
         panel = _make_panel([junction])
 
-        removed = filter_snp_pairs(panel)
+        removed, fallback = filter_snp_pairs(panel)
 
         assert removed == 0
+        assert fallback == []
 
     def test_returns_removal_count(self):
         """Return value matches total pairs removed across junctions."""
@@ -720,9 +730,10 @@ class TestFilterSnpPairs:
         ]
         panel = _make_panel([j1, j2])
 
-        removed = filter_snp_pairs(panel)
+        removed, fallback = filter_snp_pairs(panel)
 
         assert removed == 4  # 2 from j1 + 2 from j2
+        assert fallback == ["J2"]
 
     def test_multiple_junctions_mixed(self):
         """Mixed junctions: one all-clean, one mixed, one all-dirty."""
@@ -749,10 +760,11 @@ class TestFilterSnpPairs:
         ]
 
         panel = _make_panel([j_clean, j_mixed, j_dirty])
-        removed = filter_snp_pairs(panel)
+        removed, fallback = filter_snp_pairs(panel)
 
         # j_clean: 0 removed, j_mixed: 1 removed, j_dirty: 1 removed
         assert removed == 2
+        assert fallback == ["J_DIRTY"]
         assert len(j_clean.primer_pairs) == 2
         assert len(j_mixed.primer_pairs) == 1
         assert j_mixed.primer_pairs[0].pair_id == "m_clean"

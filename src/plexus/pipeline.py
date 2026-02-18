@@ -284,13 +284,17 @@ def run_pipeline(
             )
             result.steps_completed.append("snp_checked")
 
-            if snp_strict:
+            if snp_strict or snp_config.snp_strict:
                 from plexus.snpcheck.checker import filter_snp_pairs
 
-                n_removed = filter_snp_pairs(panel)
+                n_removed, fallback_junctions = filter_snp_pairs(panel)
                 logger.info(
                     f"SNP strict mode: removed {n_removed} primer pairs overlapping SNPs"
                 )
+                for name in fallback_junctions:
+                    result.errors.append(
+                        f"SNP strict: '{name}' — no SNP-free pairs found; least-affected pair kept"
+                    )
                 result.steps_completed.append("snp_strict_filtered")
         except Exception as e:
             logger.error(f"SNP check failed: {e}")

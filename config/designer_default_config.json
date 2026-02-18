@@ -64,10 +64,15 @@
         "salt_correction_formula": "santalucia1998",
         "thermodynamic_table": "santalucia1998"
     },
+    "snp_check_parameters": {
+        "af_threshold": 0.01,
+        "snp_penalty_weight": 5.0,
+        "snp_strict": false
+    },
     "multiplex_picker_parameters": {
         "initial_solutions": 100,
         "top_solutions_to_keep": 4,
-        "target_plexity": 20,
+        "target_plexity": 24,
         "minimum_plexity": 10,
         "maximum_plexity": 50,
         "plexity_wt_lt": 1.0,

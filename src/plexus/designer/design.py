@@ -179,7 +179,6 @@ def design_multiplex_primers(
                 right_kmers, panel.config, orientation="right"
             )
 
-        # TODO: Actually generate table of primers to output
         primer_table = [left_primers, right_primers]
 
         eval_string = (

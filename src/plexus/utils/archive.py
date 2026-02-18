@@ -63,13 +63,6 @@ def calculate_primer_design_regions(j_min, j_max, design_parameters):
     return [fp_start, fp_end], [rp_start, rp_end]
 
 
-# TODO how to handle overlapping junctions? There can
-# be different cases:
-# (1) Junctions very close together -> merge immediately
-# (2) Moderately far apart junctions -> allow up to 14 nt 5' overlap
-# (3) Identify junctions which cannot be merged -> report and/or ignore one of them
-
-
 def read_junction_coordinates(csv_path):
     """
     Read junction coordinates from CSV file and convert to list of pairs.
