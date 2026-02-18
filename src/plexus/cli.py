@@ -162,6 +162,14 @@ def run(
             help="Minimum allele frequency for SNP flagging (default: 0.01).",
         ),
     ] = None,
+    selector: Annotated[
+        str,
+        typer.Option(
+            "--selector",
+            "-s",
+            help="Multiplex selector algorithm: Greedy, Random, BruteForce, SimulatedAnnealing, or DFS.",
+        ),
+    ] = "Greedy",
 ) -> None:
     """
     Run the complete multiplex primer design pipeline.
@@ -198,6 +206,7 @@ def run(
             snp_vcf=snp_vcf,
             skip_snpcheck=skip_snpcheck,
             snp_af_threshold=snp_af_threshold,
+            selector=selector,
         )
 
         if isinstance(result, MultiPanelResult):

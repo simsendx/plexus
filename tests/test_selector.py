@@ -8,7 +8,13 @@ import pandas as pd
 import pytest
 
 from plexus.selector.multiplex import Multiplex
-from plexus.selector.selectors import BruteForce, GreedySearch, RandomSearch
+from plexus.selector.selectors import (
+    BruteForce,
+    DepthFirstSearch,
+    GreedySearch,
+    RandomSearch,
+    SimulatedAnnealing,
+)
 
 
 class TestMultiplex:
@@ -54,3 +60,51 @@ class TestBruteForce:
         results = BruteForce(df, cost_fn).run(store_maximum=10)
         assert len(results) == 4  # 2 pairs x 2 pairs = 4 combos
         assert all(isinstance(m, Multiplex) for m in results)
+
+
+class TestSimulatedAnnealing:
+    def test_returns_correct_number(self, selector_inputs):
+        df, cost_fn = selector_inputs
+        results = SimulatedAnnealing(df, cost_fn).run(
+            N_restarts=3, steps_per_restart=50, greedy_seed_iterations=5
+        )
+        assert len(results) == 3
+        assert all(isinstance(m, Multiplex) for m in results)
+        assert all(len(m.primer_pairs) == 2 for m in results)
+
+    def test_single_candidate_per_target(self):
+        df = pd.DataFrame(
+            {
+                "target_id": ["T1", "T2"],
+                "pair_name": ["P1", "P2"],
+            }
+        )
+        cost_fn = MagicMock()
+        cost_fn.calc_cost = MagicMock(return_value=0.5)
+        results = SimulatedAnnealing(df, cost_fn).run(N_restarts=3)
+        assert len(results) == 1
+        assert results[0].primer_pairs == ["P1", "P2"]
+
+
+class TestDepthFirstSearch:
+    def test_returns_all_combinations(self, selector_inputs):
+        df, cost_fn = selector_inputs
+        results = DepthFirstSearch(df, cost_fn).run(
+            seed_with_greedy=False, store_maximum=200
+        )
+        assert len(results) == 4  # 2 x 2 = 4 combinations
+        assert all(isinstance(m, Multiplex) for m in results)
+
+    def test_with_greedy_seed(self, selector_inputs):
+        df, cost_fn = selector_inputs
+        results = DepthFirstSearch(df, cost_fn).run(
+            seed_with_greedy=True, greedy_seed_iterations=5, store_maximum=200
+        )
+        assert len(results) == 4
+        assert all(isinstance(m, Multiplex) for m in results)
+
+    def test_max_nodes_limit(self, selector_inputs):
+        df, cost_fn = selector_inputs
+        results = DepthFirstSearch(df, cost_fn).run(seed_with_greedy=False, max_nodes=2)
+        # With max_nodes=2 we can only visit 2 nodes, so fewer solutions
+        assert len(results) < 4

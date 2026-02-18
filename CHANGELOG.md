@@ -5,6 +5,16 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 18-02-2026
+
+### Added
+
+- Simulated Annealing (`SimulatedAnnealing`) multiplex selector: seeds from greedy solutions, escapes local optima via probabilistic acceptance of worse solutions during cooling.
+- Depth-First Search with pruning (`DFS`) multiplex selector: iterative DFS with lower-bound pruning, optional greedy seeding, and a `max_nodes` safety valve. Can find provably optimal solutions for smaller panels.
+- `--selector` / `-s` CLI option to choose the multiplex selection algorithm (`Greedy`, `Random`, `BruteForce`, `SimulatedAnnealing`, `DFS`). Defaults to `Greedy`.
+- `selector` parameter on `run_pipeline()` for programmatic algorithm selection.
+- Tests for both new selectors, including edge cases (single-candidate targets, node limits).
+
 ## [0.2.3] - 17-02-2026
 
 ### Removed

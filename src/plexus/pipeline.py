@@ -119,6 +119,7 @@ def run_pipeline(
     snp_vcf: str | Path | None = None,
     skip_snpcheck: bool = False,
     snp_af_threshold: float | None = None,
+    selector: str = "Greedy",
 ) -> PipelineResult:
     """
     Run the complete multiplex primer design pipeline.
@@ -147,6 +148,9 @@ def run_pipeline(
         Whether to run BLAST specificity check (default: True).
     padding : int
         Bases to extract around each junction (default: 200).
+    selector : str
+        Multiplex selector algorithm. One of "Greedy", "Random",
+        "BruteForce", "SimulatedAnnealing", or "DFS" (default: "Greedy").
 
     Returns
     -------
@@ -322,15 +326,24 @@ def run_pipeline(
 
         if selector_df.empty:
             logger.warning("No primer pairs available for multiplex optimization.")
+        elif selector not in selector_collection:
+            raise ValueError(
+                f"Unknown selector '{selector}'. "
+                f"Available: {', '.join(selector_collection)}"
+            )
         else:
             cost_fn = MultiplexCostFunction(
                 pair_lookup, config.multiplex_picker_parameters
             )
-            selector_cls = selector_collection["Greedy"]
-            selector = selector_cls(selector_df, cost_fn)
-            solutions = selector.run(
-                N=config.multiplex_picker_parameters.initial_solutions
-            )
+            selector_cls = selector_collection[selector]
+            selector_obj = selector_cls(selector_df, cost_fn)
+            logger.info(f"Using '{selector}' selector algorithm.")
+            if selector in ("Greedy", "Random"):
+                solutions = selector_obj.run(
+                    N=config.multiplex_picker_parameters.initial_solutions
+                )
+            else:
+                solutions = selector_obj.run()
 
             # Sort by cost and keep top solutions
             solutions.sort(key=lambda m: m.cost)
