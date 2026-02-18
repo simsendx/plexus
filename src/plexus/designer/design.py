@@ -89,6 +89,10 @@ def design_multiplex_primers(
     wt_product_size_lt = pair_params.PRIMER_PAIR_WT_PRODUCT_SIZE_LT
     wt_diff_tm = pair_params.PRIMER_PAIR_WT_DIFF_TM
 
+    # Tail sequences (prepended to primers for dimer scoring and output)
+    forward_tail = singleplex.forward_tail
+    reverse_tail = singleplex.reverse_tail
+
     # =============================================
     # Start designing
     # =============================================
@@ -208,6 +212,8 @@ def design_multiplex_primers(
             wt_product_size_gt=wt_product_size_gt,
             wt_product_size_lt=wt_product_size_lt,
             wt_diff_tm=wt_diff_tm,
+            forward_tail=forward_tail,
+            reverse_tail=reverse_tail,
         )
 
     logger.info(

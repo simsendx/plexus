@@ -107,6 +107,8 @@ class Junction:
         wt_product_size_gt: float = 1.0,
         wt_product_size_lt: float = 1.0,
         wt_diff_tm: float = 1.0,
+        forward_tail: str = "",
+        reverse_tail: str = "",
     ) -> list[tuple[object, object]]:
         """
         Optimized version using sorted primers for better performance.
@@ -139,6 +141,11 @@ class Junction:
 
         # Initialize dimer predictor once per junction
         dimer_predictor = PrimerDimerPredictor()
+
+        # Replace 'N' with 'A' in tails for the aligner (N causes KeyErrors in the
+        # nearest-neighbour lookup); Primer.seq is never modified.
+        def _tailed(tail: str, seq: str) -> str:
+            return tail.replace("N", "A") + seq
 
         for left_primer in left_sorted:
             for right_primer in right_sorted:
@@ -185,10 +192,10 @@ class Junction:
                     pair_id=f"{left_primer.name}_{right_primer.name}",
                 )
 
-                # Calculate cross-dimer score
+                # Calculate cross-dimer score using tailed sequences.
                 dimer_predictor.set_primers(
-                    left_primer.seq,
-                    right_primer.seq,
+                    _tailed(forward_tail, left_primer.seq),
+                    _tailed(reverse_tail, right_primer.seq),
                     left_primer.name,
                     right_primer.name,
                 )
@@ -242,7 +249,6 @@ class MultiplexPanel:
         self,
         preset: str = "default",
         config_path: str | None = None,
-        config_dict: dict | None = None,
     ) -> None:
         """
         Load design and PCR configuration parameters.
@@ -253,7 +259,6 @@ class MultiplexPanel:
         Args:
             preset: Which standard config file to use? Either "default" or "lenient".
             config_path: User-provided config from a file. Overrides preset.
-            config_dict: User-provided config from a dictionary. Highest priority.
 
         Raises:
             pydantic.ValidationError: If configuration parameters are invalid.
@@ -262,7 +267,6 @@ class MultiplexPanel:
         self.config = load_config(
             preset=preset,
             config_path=config_path,
-            config_dict=config_dict,
         )
 
     def import_junctions_csv(self, file_path: str):
@@ -785,6 +789,13 @@ class MultiplexPanel:
         Args:
             file_path: Path to the output CSV file.
         """
+        fwd_tail = (
+            self.config.singleplex_design_parameters.forward_tail if self.config else ""
+        )
+        rev_tail = (
+            self.config.singleplex_design_parameters.reverse_tail if self.config else ""
+        )
+
         data = []
         for junction in self.junctions:
             if not junction.primer_pairs:
@@ -797,6 +808,8 @@ class MultiplexPanel:
                     "Reverse_Name": pair.reverse.name,
                     "Forward_Seq": pair.forward.seq,
                     "Reverse_Seq": pair.reverse.seq,
+                    "Forward_Full_Seq": fwd_tail + pair.forward.seq,
+                    "Reverse_Full_Seq": rev_tail + pair.reverse.seq,
                     "Amplicon_Length": pair.amplicon_length,
                     "Penalty": pair.pair_penalty,
                     "Insert_Size": pair.insert_size,
@@ -825,6 +838,12 @@ class MultiplexPanel:
         Shared by save_selected_multiplex_csv and save_top_panels_csv.
         """
         design_start = junction.design_start or 0
+        fwd_tail = (
+            self.config.singleplex_design_parameters.forward_tail if self.config else ""
+        )
+        rev_tail = (
+            self.config.singleplex_design_parameters.reverse_tail if self.config else ""
+        )
 
         return {
             "Junction": junction.name,
@@ -834,6 +853,8 @@ class MultiplexPanel:
             "Pair_ID": pair.pair_id,
             "Forward_Seq": pair.forward.seq,
             "Reverse_Seq": pair.reverse.seq,
+            "Forward_Full_Seq": fwd_tail + pair.forward.seq,
+            "Reverse_Full_Seq": rev_tail + pair.reverse.seq,
             "Forward_Tm": pair.forward.tm,
             "Reverse_Tm": pair.reverse.tm,
             "Tm_Diff": round(abs((pair.forward.tm or 0) - (pair.reverse.tm or 0)), 2),

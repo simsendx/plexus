@@ -101,10 +101,10 @@ class TestSingleplexDesignParameters:
     def test_alias_for_tail_sequences(self):
         """Test that alias names work for tail sequences."""
         params = SingleplexDesignParameters.model_validate(
-            {"5_primer_tail": "ATCG", "3_prime_tail": "GCTA"}
+            {"forward_tail": "ATCG", "reverse_tail": "GCTA"}
         )
-        assert params.five_prime_tail == "ATCG"
-        assert params.three_prime_tail == "GCTA"
+        assert params.forward_tail == "ATCG"
+        assert params.reverse_tail == "GCTA"
 
 
 class TestPrimerPairParameters:
@@ -303,8 +303,8 @@ class TestDesignerConfig:
         config = DesignerConfig()
         data = config.to_dict()
 
-        # Should use alias "5_primer_tail" not "five_prime_tail"
-        assert "5_primer_tail" in data["singleplex_design_parameters"]
+        # Should use alias "forward_tail" not "five_prime_tail"
+        assert "forward_tail" in data["singleplex_design_parameters"]
 
     def test_to_json_file(self):
         """Test saving config to JSON file."""
@@ -358,17 +358,6 @@ class TestLoadConfig:
         config = load_config(preset="invalid")
         assert isinstance(config, DesignerConfig)
 
-    def test_load_from_dict(self):
-        """Test loading from dict via load_config."""
-        config = load_config(
-            config_dict={
-                "singleplex_design_parameters": {
-                    "PRIMER_OPT_TM": 62.0,
-                }
-            }
-        )
-        assert config.singleplex_design_parameters.PRIMER_OPT_TM == 62.0
-
     def test_load_from_file(self):
         """Test loading from file via load_config."""
         config_data = {
@@ -382,24 +371,6 @@ class TestLoadConfig:
         try:
             config = load_config(config_path=temp_path)
             assert config.singleplex_design_parameters.PRIMER_OPT_TM == 63.0
-        finally:
-            Path(temp_path).unlink()
-
-    def test_priority_dict_over_file(self):
-        """Test that config_dict takes priority over config_path."""
-        config_data = {"singleplex_design_parameters": {"PRIMER_OPT_TM": 59.0}}
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(config_data, f)
-            temp_path = f.name
-
-        try:
-            config = load_config(
-                config_path=temp_path,
-                config_dict={"singleplex_design_parameters": {"PRIMER_OPT_TM": 61.0}},
-            )
-            # Dict value should win
-            assert config.singleplex_design_parameters.PRIMER_OPT_TM == 61.0
         finally:
             Path(temp_path).unlink()
 

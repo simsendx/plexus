@@ -28,6 +28,9 @@ The system is designed as a modular pipeline orchestrated by a high-level contro
     *   Implements the `simsen` k-mer enumeration algorithm: exhaustively generates candidate primers of varying lengths from the sequence flanking each junction.
     *   Thermodynamic filtering uses `primer3-py` (`ThermoAnalysis`) for hairpin and self-binding ΔG.
     *   Manages `Junction` and `PrimerPair` objects.
+    *   **Tail sequences** (`forward_tail` / `reverse_tail` in config): adapter sequences prepended to the forward and reverse primers respectively (at the 5′ end of each). `Primer.seq` always holds the bare genomic binding sequence and is never mutated. Tails are applied in two places only:
+        *   *Dimer scoring*: tailed sequences (`tail + primer.seq`) are passed to `PrimerDimerPredictor` so that cross-dimer scores reflect the real oligonucleotide that will be ordered. Any `N` bases in tails are replaced with `A` before scoring to avoid `KeyError`s in the nearest-neighbour thermodynamic tables; this substitution is local to the scorer and does not affect stored sequences.
+        *   *CSV output*: `Forward_Full_Seq` / `Reverse_Full_Seq` columns in `candidate_pairs.csv` and `selected_multiplex.csv` contain the original tail (Ns preserved) concatenated with the binding sequence, providing ready-to-order sequences. BLAST, Tm, GC%, and hairpin calculations all continue to use the bare binding sequence.
 
 4.  **SNP Check (`snpcheck/`)**:
     *   Checks primers against a VCF file (default: bundled gnomAD AF-only VCF, downloaded via `plexus download-resources`).

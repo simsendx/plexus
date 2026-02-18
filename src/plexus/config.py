@@ -59,14 +59,14 @@ class SingleplexDesignParameters(BaseModel):
     # Junction parameters
     junction_padding_bases: int = Field(default=3, ge=0, le=50)
 
-    # Tail sequences (optional adapter sequences)
-    five_prime_tail: str = Field(
+    # Tail sequences (optional adapter sequences prepended to each primer)
+    forward_tail: str = Field(
         default="GGACACTCTTTCCCTACACGACGCTCTTCCGATCTAAAAAAAAAAAAAAAAAAAATGGGAAAGAGTGTCC",
-        alias="5_primer_tail",
+        alias="forward_tail",
     )
-    three_prime_tail: str = Field(
+    reverse_tail: str = Field(
         default="GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT",
-        alias="3_prime_tail",
+        alias="reverse_tail",
     )
 
     # Penalty weights
@@ -358,12 +358,11 @@ class DesignerConfig(BaseModel):
 def load_config(
     preset: str = "default",
     config_path: str | None = None,
-    config_dict: dict[str, Any] | None = None,
 ) -> DesignerConfig:
     """
     Load and validate design configuration.
 
-    Priority order: config_dict > config_path > preset
+    Priority order: config_path > preset
 
     Parameters
     ----------
@@ -371,8 +370,6 @@ def load_config(
         Preset configuration name ("default" or "lenient").
     config_path : str | None
         Path to a custom configuration JSON file.
-    config_dict : dict | None
-        Configuration dictionary (highest priority).
 
     Returns
     -------
@@ -386,10 +383,6 @@ def load_config(
     FileNotFoundError
         If the specified config file does not exist.
     """
-    if config_dict is not None:
-        logger.info("Loading config from dictionary.")
-        return DesignerConfig.from_dict(config_dict)
-
     if config_path is not None:
         logger.info(f"Loading config from: {config_path}")
         return DesignerConfig.from_json_file(config_path)

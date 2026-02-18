@@ -151,8 +151,7 @@ def run_multi_panel(
         Max parallel workers. None defaults to number of panels.
     **pipeline_kwargs
         All other arguments passed through to run_pipeline
-        (genome, preset, config_path, config_dict, design_method,
-        run_blast, padding).
+        (genome, preset, config_path, design_method, run_blast, padding).
 
     Returns
     -------

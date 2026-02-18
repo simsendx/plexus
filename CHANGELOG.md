@@ -5,6 +5,32 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 18-02-2026
+
+### Added
+
+- `Forward_Full_Seq` / `Reverse_Full_Seq` columns in `candidate_pairs.csv` and `selected_multiplex.csv` containing the adapter tail prepended to the binding sequence, giving ready-to-order oligonucleotide sequences.
+- Tail sequences are now used when computing cross-dimer scores in `Junction.find_primer_pairs()`, so dimer scores reflect the actual primer that will be ordered rather than the bare binding region.
+
+### Changed
+
+- Config fields renamed in `SingleplexDesignParameters`: `five_prime_tail` (alias `5_primer_tail`) → `forward_tail`; `three_prime_tail` (alias `3_prime_tail`) → `reverse_tail`. Both tails are prepended at the 5′ end of their respective primer; the new names reflect which primer each tail belongs to rather than which end of the amplicon.
+- JSON preset config files (`designer_default_config.json`, `designer_lenient_config.json`): keys renamed from `5_primer_tail` / `3_prime_tail` to `forward_tail` / `reverse_tail`.
+
+### Implementation note
+
+`Primer.seq` is never mutated. Any `N` bases in a tail (e.g. UMI placeholders) are replaced with `A` for dimer scoring only — the nearest-neighbour thermodynamic tables used by the aligner do not handle `N`. Output CSVs receive the original tail with `N`s intact.
+
+## [0.3.3] - 18-02-2026
+
+### Removed
+
+- `src/plexus/config.py`: Removed config_dict parameter and its branch from load_config(), updated docstring.
+- `src/plexus/pipeline.py`: Removed config_dict parameter from run_pipeline() signature and docstring, removed from load_config() call site, and removed the now-unused from typing import Any import.
+- `src/plexus/designer/multiplexpanel.py`: Removed config_dict parameter from MultiplexPanel.load_config() and its load_config() call.
+- `src/plexus/orchestrator.py`: Removed config_dict from the **pipeline_kwargs docstring.
+- `tests/test_config.py`: Deleted test_load_from_dict and test_priority_dict_over_file; the three DesignerConfig.from_dict() tests are retained.
+
 ## [0.3.2] - 18-02-2026
 
 ### Added

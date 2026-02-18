@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from loguru import logger
 
@@ -112,7 +111,6 @@ def run_pipeline(
     genome: str = "hg38",
     preset: str = "default",
     config_path: str | Path | None = None,
-    config_dict: dict[str, Any] | None = None,
     design_method: str = "simsen",
     run_blast: bool = True,
     padding: int = 200,
@@ -141,8 +139,6 @@ def run_pipeline(
         Configuration preset ("default" or "lenient").
     config_path : str | Path | None
         Path to custom configuration JSON file.
-    config_dict : dict | None
-        Configuration dictionary (highest priority).
     design_method : str
         Primer design algorithm (default: "simsen").
     run_blast : bool
@@ -188,7 +184,6 @@ def run_pipeline(
     config = load_config(
         preset=preset,
         config_path=str(config_path) if config_path else None,
-        config_dict=config_dict,
     )
 
     # =========================================================================
