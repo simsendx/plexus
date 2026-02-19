@@ -186,6 +186,11 @@ class MultiplexPickerParameters(BaseModel):
     wt_pair_penalty: float = Field(default=1.0, ge=0.0)
     wt_off_target: float = Field(default=5.0, ge=0.0)
     wt_cross_dimer: float = Field(default=1.0, ge=0.0)
+    wt_pair_dimer: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Weight for intra-pair F/R dimer score in cost function.",
+    )
 
     @model_validator(mode="after")
     def validate_plexity_range(self) -> MultiplexPickerParameters:

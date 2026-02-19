@@ -87,6 +87,24 @@ def test_annotate_expected_binding(sample_bound_df):
     assert finder.offtarget_df.iloc[0]["chrom"] == "chr22"
 
 
+def test_find_amplicons_uses_target_map(sample_bound_df):
+    target_map = {"A_F": "GENE_A", "A_R": "GENE_A", "B_F": "GENE_B", "B_R": "GENE_B"}
+    finder = AmpliconFinder(sample_bound_df, target_map=target_map)
+    finder.find_amplicons(max_size_bp=1000)
+    df = finder.amplicon_df
+
+    # On-target chr7 amplicon: both primers belong to GENE_A
+    chr7 = df[df["chrom"] == "chr7"].iloc[0]
+    assert chr7["F_target"] == "GENE_A"
+    assert chr7["R_target"] == "GENE_A"
+
+    # Cross-target chr22 amplicon: A_F (4950) + B_R (5150)
+    cross = df[(df["chrom"] == "chr22") & (df["F_primer"] == "A_F")]
+    assert len(cross) == 1
+    assert cross.iloc[0]["F_target"] == "GENE_A"
+    assert cross.iloc[0]["R_target"] == "GENE_B"
+
+
 def test_position_equality():
     p1 = Position("chr1", 100)
     p2 = Position("chr1", 100)

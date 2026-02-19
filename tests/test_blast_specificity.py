@@ -11,6 +11,7 @@ from plexus.designer.multiplexpanel import MultiplexPanel
 def mock_panel():
     panel = MagicMock(spec=MultiplexPanel)
     panel.unique_primer_map = {"ACTG": "P1_F", "CAGT": "P1_R"}
+    panel.primer_target_map = {"P1_F": "JUNCTION1", "P1_R": "JUNCTION1"}
 
     # Mock Junction
     junction = MagicMock()
@@ -69,11 +70,21 @@ def test_run_specificity_check_integration(mock_panel, tmp_path):
         # Run
         run_specificity_check(mock_panel, str(tmp_path), "fake_genome.fa")
 
+        # Verify AmpliconFinder was called with the target_map
+        import unittest.mock
+
+        MockFinder.assert_called_once_with(
+            unittest.mock.ANY,  # bound_df
+            target_map={"P1_F": "JUNCTION1", "P1_R": "JUNCTION1"},
+        )
+
         # Verify
         pair = mock_panel.junctions[0].primer_pairs[0]
         assert pair.specificity_checked is True
         assert len(pair.off_target_products) == 1
         assert pair.off_target_products[0]["product_bp"] == 500
+        # Coordinates are off-target (5000 vs expected ~1010) so on-target not detected
+        assert pair.on_target_detected is False
 
 
 def test_run_specificity_check_no_hits(mock_panel, tmp_path):
@@ -92,6 +103,88 @@ def test_run_specificity_check_no_hits(mock_panel, tmp_path):
         run_specificity_check(mock_panel, str(tmp_path), "fake_genome.fa")
 
         assert pair.specificity_checked is False
+        # on_target_detected should remain at its initial mock value (not set by the function)
+        assert pair.on_target_detected != True  # noqa: E712  — mock hasn't been set to True
+
+
+def test_run_specificity_check_on_target_detected(mock_panel, tmp_path):
+    """When the amplicon is at the correct coordinates, on_target_detected is True."""
+    with (
+        patch("plexus.blast.specificity.BlastRunner") as MockRunner,
+        patch("plexus.blast.specificity.BlastResultsAnnotator") as MockAnnotator,
+        patch("plexus.blast.specificity.AmpliconFinder") as MockFinder,
+        patch("os.makedirs"),
+    ):
+        runner_instance = MockRunner.return_value
+        runner_instance.get_dataframe.return_value = pd.DataFrame({"dummy": [1]})
+
+        annotator_instance = MockAnnotator.return_value
+        annotator_instance.get_predicted_bound.return_value = pd.DataFrame(
+            {"dummy_bound": [1]}
+        )
+
+        # Amplicon at the CORRECT coordinates:
+        # junction.design_start=1000, pair.forward.start=10 -> expected 1010
+        # junction.design_start=1000, pair.reverse.start=180 -> expected 1180
+        finder_instance = MockFinder.return_value
+        finder_instance.amplicon_df = pd.DataFrame(
+            [
+                {
+                    "chrom": "chr7",
+                    "F_primer": "P1_F",
+                    "R_primer": "P1_R",
+                    "product_bp": 190,
+                    "F_start": 1010,  # Correct coordinates
+                    "R_start": 1180,
+                }
+            ]
+        )
+
+        run_specificity_check(mock_panel, str(tmp_path), "fake_genome.fa")
+
+        pair = mock_panel.junctions[0].primer_pairs[0]
+        assert pair.specificity_checked is True
+        assert pair.on_target_detected is True
+        assert len(pair.off_target_products) == 0
+
+
+def test_run_specificity_check_on_target_not_detected(mock_panel, tmp_path):
+    """When no amplicon matches target coordinates, on_target_detected is False."""
+    with (
+        patch("plexus.blast.specificity.BlastRunner") as MockRunner,
+        patch("plexus.blast.specificity.BlastResultsAnnotator") as MockAnnotator,
+        patch("plexus.blast.specificity.AmpliconFinder") as MockFinder,
+        patch("os.makedirs"),
+    ):
+        runner_instance = MockRunner.return_value
+        runner_instance.get_dataframe.return_value = pd.DataFrame({"dummy": [1]})
+
+        annotator_instance = MockAnnotator.return_value
+        annotator_instance.get_predicted_bound.return_value = pd.DataFrame(
+            {"dummy_bound": [1]}
+        )
+
+        # BLAST only found an off-target hit (pair maps somewhere, but not the intended locus)
+        finder_instance = MockFinder.return_value
+        finder_instance.amplicon_df = pd.DataFrame(
+            [
+                {
+                    "chrom": "chr7",
+                    "F_primer": "P1_F",
+                    "R_primer": "P1_R",
+                    "product_bp": 500,
+                    "F_start": 9000,  # Wrong coordinates
+                    "R_start": 9500,
+                }
+            ]
+        )
+
+        run_specificity_check(mock_panel, str(tmp_path), "fake_genome.fa")
+
+        pair = mock_panel.junctions[0].primer_pairs[0]
+        assert pair.specificity_checked is True
+        assert pair.on_target_detected is False
+        assert len(pair.off_target_products) == 1
 
 
 # ---------------------------------------------------------------------------

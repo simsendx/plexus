@@ -5,6 +5,17 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 19-02-2026
+
+### Added
+
+- **Intra-pair dimer score in cost function**: `pair.dimer_score` (F/R heterodimer, computed by the Johnston algorithm during `find_primer_pairs()`) is now included in `MultiplexCostFunction.calc_cost()`. The penalty is `wt_pair_dimer * max(0, -dimer_score)`, so only actual dimer formation (negative scores) contributes. New `wt_pair_dimer` weight (default `1.0`) added to `MultiplexPickerParameters` and `designer_default_config.json`. Set to `0.0` to disable.
+- **On-target BLAST verification**: After `run_specificity_check()`, each `PrimerPair` now carries an `on_target_detected: bool | None` flag (`None` = BLAST not run; `True` = confirmed on-target amplicon found; `False` = no on-target amplicon detected, accompanied by a `logger.warning`). The field surfaces as `On_Target_Detected` in both `selected_multiplex.csv` and `top_panels.csv`.
+
+### Fixed
+
+- **`F_target`/`R_target` always `"SEQ"` in `AmpliconFinder`**: Synthetic primer IDs (`SEQ_N`) were split on `"_"` to recover a target name, but this always produced `"SEQ"`. `aggregate_primers()` now builds `primer_target_map` (synthetic ID → junction name) at aggregation time. `AmpliconFinder` and `BlastResultsAnnotator` accept an optional `target_map` kwarg and use it to populate `F_target`/`R_target` with real junction names (e.g. `"EXON1"`). When a sequence is shared across multiple junctions the names are joined with `"|"`. `specificity.py` passes the map through automatically; callers that omit it fall back to the old split behaviour.
+
 ## [0.4.1] - 19-02-2026
 
 ### Added
@@ -21,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Cleaned up dead code**: Removed unused placeholder files and methods (`archive.py`, `in_silico_pcr.py`, and `biopython_process_blast_results`) to streamline the codebase for production.
 - **Removed download-resources** from CLI, as it was redundant with the addition of the init command.
-
 
 ## [0.4.0] - 18-02-2026
 

@@ -51,13 +51,14 @@ def run_specificity_check(panel: MultiplexPanel, work_dir: str, genome_fasta: st
         return
 
     # 4. Annotate Results
-    annotator = BlastResultsAnnotator(blast_df)
+    target_map = getattr(panel, "primer_target_map", {})
+    annotator = BlastResultsAnnotator(blast_df, target_map=target_map)
     annotator.build_annotation_dict(length_threshold=15, evalue_threshold=10)
     annotator.add_annotations()
 
     # 5. Find Off-Target Amplicons
     bound_df = annotator.get_predicted_bound()
-    finder = AmpliconFinder(bound_df)
+    finder = AmpliconFinder(bound_df, target_map=target_map)
     finder.find_amplicons(max_size_bp=2000)
 
     all_amplicons_df = finder.amplicon_df
@@ -95,11 +96,21 @@ def run_specificity_check(panel: MultiplexPanel, work_dir: str, genome_fasta: st
             potential_products = amplicon_map.get((f_id, r_id), [])
 
             off_targets = []
+            on_targets = []
             for prod in potential_products:
-                if not _is_on_target(prod, junction, pair):
+                if _is_on_target(prod, junction, pair):
+                    on_targets.append(prod)
+                else:
                     off_targets.append(prod)
 
             pair.off_target_products = off_targets
+            pair.on_target_detected = len(on_targets) > 0
+
+            if not pair.on_target_detected:
+                logger.warning(
+                    f"Pair {pair.pair_id}: on-target amplicon not detected by BLAST. "
+                    "Check BLAST sensitivity or junction coordinates."
+                )
 
             if off_targets:
                 logger.debug(

@@ -183,7 +183,7 @@ def generate_kmers(
     kmers = []
     kmer_counter = 0
     kmer_filtered_counter = 0
-    for k in range(k_min, k_max):
+    for k in range(k_min, k_max + 1):
         # max position to search
         max_pos = len(target_sequence) + 1 - k
 

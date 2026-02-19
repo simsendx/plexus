@@ -4,7 +4,7 @@ import pandas as pd
 
 
 class BlastResultsAnnotator:
-    def __init__(self, blast_df):
+    def __init__(self, blast_df, target_map=None):
         """
         Annotate tabular results produced by running BLAST with
         `-outfmt 6`.
@@ -12,9 +12,12 @@ class BlastResultsAnnotator:
         params
             blast_df: DataFrame (n_hits, n_columns)
                 Each row contains a BLAST hit.
+            target_map: dict mapping synthetic primer IDs (e.g. "SEQ_3") to
+                junction name(s) (e.g. "EXON1" or "EXON1|EXON2"). Optional.
 
         """
         self.blast_df = blast_df
+        self.target_map = target_map or {}
 
     def build_annotation_dict(self, length_threshold=12, evalue_threshold=4):
         """
@@ -85,7 +88,7 @@ class BlastResultsAnnotator:
             PrimerBlastRecord(
                 primer_name=qseqid,
                 primer_pair_name=qseqid[:-2],
-                target_name=qseqid.split("_")[0],
+                target_name=self.target_map.get(qseqid, qseqid.split("_")[0]),
                 total_alignments=qseqid_df.shape[0],
                 **qseqid_df[list(self.annotations)].sum().to_dict(),
             )

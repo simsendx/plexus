@@ -65,6 +65,7 @@ class PrimerPair:
     pair_id: str = field(default="", repr=False)
     specificity_checked: bool = False
     off_target_products: list = field(default_factory=list)
+    on_target_detected: bool | None = None
     dimer_score: float = None
     selected: bool = False
     snp_count: int = 0

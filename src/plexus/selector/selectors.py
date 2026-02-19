@@ -88,7 +88,11 @@ class GreedySearch(MultiplexSelector):
                 multiplex.append(target_pairs[target_id][idxmax])
 
             # Add to list of all multiplexes
-            multiplexes.append(Multiplex(cost=min(costs), primer_pairs=multiplex))
+            multiplexes.append(
+                Multiplex(
+                    cost=self.cost_function.calc_cost(multiplex), primer_pairs=multiplex
+                )
+            )
 
             if (ix + 1) % max(1, N // 10) == 0:
                 logger.debug(f"Greedy search: {ix + 1}/{N} iterations complete")

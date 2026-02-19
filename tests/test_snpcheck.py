@@ -169,7 +169,7 @@ class TestCountSnpsInRegion:
 
         count, snps = _count_snps_in_region(vcf, "chr7", 1000, 1020, 0.01)
         assert count == 1
-        assert snps == [(1005, 0.05)]
+        assert snps == [(1006, 0.05)]
 
     def test_contig_not_in_vcf(self):
         """ValueError from pysam when contig doesn't exist should be handled."""

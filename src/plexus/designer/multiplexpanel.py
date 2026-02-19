@@ -704,8 +704,10 @@ class MultiplexPanel:
             dict: A dictionary mapping primer sequences to a list of primer names (or IDs).
                   Also creates a simplified mapping of sequence -> synthetic ID (SEQ_0, SEQ_1, ...)
                   stored in self.unique_primer_map for downstream use.
+                  Also creates self.primer_target_map mapping synthetic IDs to junction names.
         """
         seq_to_names = {}
+        seq_to_targets: dict[str, set[str]] = {}
         count_pairs = 0
 
         for junction in self.junctions:
@@ -723,6 +725,10 @@ class MultiplexPanel:
                     seq_to_names[pair.reverse.seq] = []
                 seq_to_names[pair.reverse.seq].append(pair.reverse.name)
 
+                # Track which junction(s) each sequence belongs to
+                for seq in (pair.forward.seq, pair.reverse.seq):
+                    seq_to_targets.setdefault(seq, set()).add(junction.name)
+
         logger.info(
             f"Aggregated {len(seq_to_names)} unique primer sequences from {count_pairs} candidate pairs."
         )
@@ -731,6 +737,12 @@ class MultiplexPanel:
         self.unique_primer_map = {}
         for i, seq in enumerate(sorted(seq_to_names.keys())):
             self.unique_primer_map[seq] = f"SEQ_{i}"
+
+        # Build synthetic_id -> junction name(s) map
+        self.primer_target_map: dict[str, str] = {
+            self.unique_primer_map[seq]: "|".join(sorted(targets))
+            for seq, targets in seq_to_targets.items()
+        }
 
         return seq_to_names
 
@@ -878,6 +890,7 @@ class MultiplexPanel:
             "Dimer_Score": pair.dimer_score,
             "Off_Target_Count": len(pair.off_target_products),
             "Specificity_Checked": pair.specificity_checked,
+            "On_Target_Detected": pair.on_target_detected,
             "SNP_Count": pair.snp_count,
             "SNP_Penalty": pair.snp_penalty,
             "Forward_SNP_Count": pair.forward.snp_count,
