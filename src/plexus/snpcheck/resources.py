@@ -18,9 +18,11 @@ from loguru import logger
 # Re-export get_cache_dir from the central resources module so that existing
 # code and test mocks targeting ``plexus.snpcheck.resources.get_cache_dir``
 # continue to work.
-from plexus.resources import (  # noqa: F401
-    DEFAULT_DATA_DIR as DEFAULT_CACHE_DIR,
-    ENV_DATA_DIR,
+from plexus.resources import (
+    DEFAULT_DATA_DIR as DEFAULT_CACHE_DIR,  # noqa: F401
+)
+from plexus.resources import (
+    ENV_DATA_DIR,  # noqa: F401
     GENOME_PRESETS,
     get_cache_dir,
 )
