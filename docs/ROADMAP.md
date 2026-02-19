@@ -134,7 +134,7 @@ primers fall within amplicon range of each other; assert cross-target classifica
 
 ---
 
-### FEAT-03 · Remove dead code from `AmpliconFinder`
+### ~~FEAT-03 · Remove dead code from `AmpliconFinder`~~ ✅ Fixed in v0.4.5
 
 **Severity: Minor · File: `src/plexus/blast/offtarget_finder.py`**
 
@@ -144,8 +144,8 @@ from what the pipeline provides) and are superseded by the coordinate-based `_is
 logic in `specificity.py`. The TODO comment block in `__init__` and `find_amplicons()` should
 be replaced with updated docstrings that reflect the current architecture.
 
-**Fix:** Remove the two dead methods and the TODO comments. Document the expected DataFrame
-schema in the class docstring.
+**Fix:** Removed the two dead methods and the TODO comments. The class docstring now documents
+the expected `bound_df` input schema and the generated `amplicon_df` output schema.
 
 ---
 
@@ -495,7 +495,7 @@ and AmpliconFinder pairing logic together.
 | ~~BUG-03~~ | ~~Fix BLAST+ v5 database detection~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.4 |
 | ~~FEAT-01~~ | ~~Switch to `blastn-short` task for primer queries~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
 | FEAT-02 | Cross-target vs off-target amplicon classification | v1.0 | Important | |
-| FEAT-03 | Remove dead code from AmpliconFinder | v1.0 | Minor | |
+| ~~FEAT-03~~ | ~~Remove dead code from AmpliconFinder~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
 | REPT-01 | Basic Panel QC Report (JSON) | v1.0 | Important | |
 | ~~AUDT-01~~ | ~~Tool versions and data checksums~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
 | SYS-01 | Pre-flight disk space check | v1.0 | Minor | |

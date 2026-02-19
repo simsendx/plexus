@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **FEAT-03 · Dead code removed from `AmpliconFinder`** (`src/plexus/blast/offtarget_finder.py`): `create_ontarget_dataframe()` and `create_offtarget_dataframe()` were never called by the pipeline and used an incompatible `primer_df` schema. Both methods and the associated TODO comments have been removed. The class docstring now documents the expected `bound_df` input schema and the generated `amplicon_df` output schema.
 - **`plexus init` requires explicit files by default**: Running `plexus init` without `--fasta` (and without `--download`) now errors with an actionable message, preventing accidental multi-GB downloads.
 - **`get_cache_dir()` consolidated**: Moved from `plexus.snpcheck.resources` to `plexus.resources` to serve as the single source of truth. The old import path continues to work via re-export.
 - **gnomAD URLs deduplicated**: `plexus.snpcheck.resources` now derives URLs from `GENOME_PRESETS` instead of hardcoding them.
