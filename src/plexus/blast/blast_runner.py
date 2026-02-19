@@ -1,6 +1,7 @@
 import os
 
 import pandas as pd
+from loguru import logger
 
 from plexus.utils.env import check_executable
 from plexus.utils.utils import run_command
@@ -62,10 +63,14 @@ class BlastRunner:
         # Simple heuristic for DB name
         self.db_path = self.reference_fasta.rsplit(".", 1)[0]
 
-        # Check if database already exists
-        db_suffixes = [".nhr", ".nin", ".nsq"]
-        if all([os.path.isfile(f"{self.db_path}{suff}") for suff in db_suffixes]):
-            print(f"BLAST database '{self.db_path}' already exists.")
+        # Check if database already exists (v5: .njs manifest; v4 fallback: .nhr header)
+        db_exists = os.path.isfile(f"{self.db_path}.njs") or os.path.isfile(
+            f"{self.db_path}.nhr"
+        )
+        if db_exists:
+            logger.info(
+                f"BLAST database '{self.db_path}' already exists, skipping creation."
+            )
             return self
 
         # Create database

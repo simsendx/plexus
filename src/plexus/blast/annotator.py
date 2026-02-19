@@ -25,7 +25,7 @@ class BlastResultsAnnotator:
 
         """
         self.annotations = {
-            "from_3prime": lambda row: row["qend"] == row["length"],
+            "from_3prime": lambda row: row["qend"] == row["qlen"],
             "length_pass_3prime": lambda row: (
                 row["length"] >= length_threshold
                 and row["pident"] == 100

@@ -40,7 +40,7 @@ def test_find_amplicons_basic(sample_bound_df):
 
     chr7_amps = df[df["chrom"] == "chr7"]
     assert len(chr7_amps) == 1
-    assert chr7_amps.iloc[0]["product_bp"] == 200
+    assert chr7_amps.iloc[0]["product_bp"] == 201
 
     chr22_amps = df[df["chrom"] == "chr22"]
     assert len(chr22_amps) == 2
@@ -85,6 +85,61 @@ def test_annotate_expected_binding(sample_bound_df):
     assert len(finder.offtarget_df) == 1
     assert finder.offtarget_df.iloc[0]["F_primer"] == "A_F"
     assert finder.offtarget_df.iloc[0]["chrom"] == "chr22"
+
+
+def test_amplicon_size_inclusive_coordinates():
+    """
+    Test for BUG-02 fix: product_bp should account for inclusive coordinates.
+
+    When forward primer is at position 1000 and reverse primer at 1200,
+    the amplicon spans 1000-1200 inclusive = 201 bp, not 200 bp.
+    """
+    cols = ["qseqid", "sseqid", "sstart", "sstrand"]
+    data = [
+        ["FWD", "chr1", 1000, "plus"],
+        ["REV", "chr1", 1200, "minus"],
+    ]
+    bound_df = pd.DataFrame(data, columns=cols)
+
+    finder = AmpliconFinder(bound_df)
+    finder.find_amplicons(max_size_bp=1000)
+
+    amplicon = finder.amplicon_df.iloc[0]
+
+    # Should be 201 (inclusive), not 200
+    assert amplicon.product_bp == 201
+    assert amplicon.F_start == 1000
+    assert amplicon.R_start == 1200
+
+    # Verify the calculation: R_start - F_start + 1
+    expected = amplicon.R_start - amplicon.F_start + 1
+    assert amplicon.product_bp == expected
+
+
+@pytest.mark.parametrize(
+    "fwd_pos,rev_pos,expected_size",
+    [
+        (1000, 1050, 51),  # Small amplicon
+        (2000, 2100, 101),  # Medium amplicon
+        (5000, 5200, 201),  # Original test case
+        (10000, 10001, 2),  # Tiny amplicon (edge case)
+    ],
+)
+def test_amplicon_sizes_various(fwd_pos, rev_pos, expected_size):
+    """Test various amplicon sizes to ensure inclusive coordinate calculation works generally."""
+    cols = ["qseqid", "sseqid", "sstart", "sstrand"]
+    data = [
+        [f"FWD_{fwd_pos}", "chr1", fwd_pos, "plus"],
+        [f"REV_{rev_pos}", "chr1", rev_pos, "minus"],
+    ]
+    bound_df = pd.DataFrame(data, columns=cols)
+
+    finder = AmpliconFinder(bound_df)
+    finder.find_amplicons(max_size_bp=2000)
+
+    amplicon = finder.amplicon_df.iloc[0]
+    assert amplicon.product_bp == expected_size
+    assert amplicon.product_bp == rev_pos - fwd_pos + 1  # Inclusive calculation
 
 
 def test_find_amplicons_uses_target_map(sample_bound_df):

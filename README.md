@@ -155,7 +155,7 @@ The config is divided into five sections:
 | `primer_pair_parameters` | Amplicon size, Tm difference, pair penalty weights |
 | `pcr_conditions` | Salt concentrations, annealing temperature, thermodynamic tables |
 | `snp_check_parameters` | AF threshold, SNP penalty weight, strict mode |
-| `multiplex_picker_parameters` | Plexity targets, optimization weights, selector settings |
+| `multiplex_picker_parameters` | Optimization weights and selector settings. Note: `target_plexity`, `minimum_plexity`, and `maximum_plexity` are reserved for a future panel-splitting feature — currently all junctions with valid primer pairs are always included. |
 
 ### Minimal override example
 

@@ -87,7 +87,7 @@ class AmpliconFinder:
                             R_primer=row["qseqid"],
                             F_start=F_start,
                             R_start=row["sstart"],
-                            product_bp=row["sstart"] - F_start,
+                            product_bp=row["sstart"] - F_start + 1,
                         )
                         for _, row in R_df.iterrows()
                     ]

@@ -18,7 +18,7 @@ would compromise the reliability of a clinical-grade tool.
 
 ---
 
-### BUG-01 · `from_3prime` annotation uses alignment length instead of query length
+### ~~BUG-01 · `from_3prime` annotation uses alignment length instead of query length~~ ✅ Fixed in v0.4.4
 
 **Severity: Critical · File: `src/plexus/blast/annotator.py:28`**
 
@@ -56,7 +56,7 @@ partial match, and full-length match, asserting correct `from_3prime` values in 
 
 ---
 
-### BUG-02 · `product_bp` off-by-one in `AmpliconFinder`
+### ~~BUG-02 · `product_bp` off-by-one in `AmpliconFinder`~~ ✅ Fixed in v0.4.4
 
 **Severity: Minor · File: `src/plexus/blast/offtarget_finder.py:91`**
 
@@ -72,7 +72,7 @@ inclusive = 201 bp. The current formula returns 200.
 
 ---
 
-### BUG-03 · BLAST+ v5 database detection fails
+### ~~BUG-03 · BLAST+ v5 database detection fails~~ ✅ Fixed in v0.4.4
 
 **Severity: Important · File: `src/plexus/blast/blast_runner.py:67`**
 
@@ -150,28 +150,64 @@ schema in the class docstring.
 
 ---
 
-### ARCH-01 · Implement or remove plexity penalty in cost function
+### REPT-01 · Panel QC Reporting Module
 
-**Severity: Important · Files: `src/plexus/config.py`, `src/plexus/selector/cost.py`**
+**Severity: Important · Files: `src/plexus/pipeline.py`, new `src/plexus/reporting/qc.py`**
 
-`MultiplexPickerParameters` defines `target_plexity`, `minimum_plexity`, `maximum_plexity`,
-`wt_lt`, and `wt_gt`, but `MultiplexCostFunction.calc_cost()` never reads these fields. The
-config parameters exist, are validated, and appear in `panel_summary.json`, but have no effect
-on the optimisation. This is confusing and potentially misleading.
+Clinical users require a high-level summary of the final panel quality and design statistics.
 
-**Two options:**
+**Deliverables:** Create a `panel_qc.json` report containing:
 
-1. **Implement:** Add a plexity term to `calc_cost()`:
-   `cost += wt_lt × max(0, target_plexity - n_pairs) + wt_gt × max(0, n_pairs - target_plexity)`
-   This makes sense for variable-size panels where not all junctions are guaranteed to have
-   working pairs.
+- **Tm Distribution:** Mean, standard deviation, and range of Tms for all selected primers.
+- **Sequence Flags:** Count of primers exceeding thresholds for high/low GC (>70% or <30%) or
+  homopolymers.
+- **Cross-Reactivity Matrix:** A summary matrix (junction vs junction) showing the count of
+  potential dimer interactions (based on current dimer scores).
 
-2. **Remove:** If all panels always include every junction (the current behaviour), remove
-   the five fields from `MultiplexPickerParameters` and the JSON config files to avoid confusion.
+This JSON can be expanded in later versions (v1.1) to support visual plots and HTML reports.
 
-The current selectors always include every junction that has at least one candidate pair. Option 2
-is simpler and honest about what the code actually does. If future use cases require partial-panel
-selection, the fields can be re-introduced then.
+---
+
+### AUDT-01 · Compliance & Integrity (Locked Versions & Checksums)
+
+**Severity: Important · Files: `src/plexus/pipeline.py`, `utils/env.py`**
+
+To satisfy clinical audit and reproducibility requirements:
+
+- **Tool Versions:** Capture and log the exact versions of system dependencies (`blastn`,
+   `bcftools`) and library versions (`primer3-py`) in the `panel_summary.json`.
+- **Data Checksums:** Calculate and store MD5 or SHA256 checksums for the input reference
+   FASTA and SNP VCF files. Warn if design is run against a file that does not match the
+   stored checksum.
+
+---
+
+### SYS-01 · Pre-flight Disk Space Check
+
+**Severity: Minor · Files: `src/plexus/utils/env.py`**
+
+Before writing BLAST output or intermediate files, verify that the output directory has
+sufficient free disk space. Issue a clear warning if available space is below a conservative
+threshold (e.g., 2 GB). This prevents silent failures mid-pipeline on systems with full or
+near-full disks.
+
+---
+
+### CLI-01 · `plexus init` template generation
+
+**Severity: Important · File: `src/plexus/cli.py`**
+
+Extend the existing `plexus init` command to generate starter files for a new design workspace:
+
+- Write a template `junctions.csv` with the correct column headers and an example row.
+- Write a `designer_config.json` pre-populated with the default preset values, ready to edit.
+
+This gives new users a concrete starting point without reading the docs. Keep the command
+non-interactive — parameters are passed as flags, consistent with the existing `--genome`
+and `--fasta` options.
+
+**Deferred to v1.x:** Interactive preset selection wizard, vendor-specific oligo ordering
+formats (e.g. IDT plate layout), and workspace-level checksum enforcement profiles.
 
 ---
 
@@ -195,7 +231,7 @@ the tolerance budget is consumed by this coordinate offset.
 
 ---
 
-### ARCH-03 · Replace `print()` with `logger` in `blast_runner.py`
+### ~~ARCH-03 · Replace `print()` with `logger` in `blast_runner.py`~~ ✅ Fixed in v0.4.4
 
 **Severity: Minor · File: `src/plexus/blast/blast_runner.py:67`**
 
@@ -210,6 +246,7 @@ This bypasses the loguru logger and breaks log capture in tests and pipeline log
 ---
 
 ### DOC-01 · Document input CSV format
+
 **Severity: Important**
 
 The required and optional column names for the junction CSV (`Name`, `Chrom`,
@@ -244,6 +281,29 @@ v1.1 focuses on improving the scientific accuracy of the BLAST-based specificity
 incorporating thermodynamic ΔG scoring for individual binding sites and advancing toward a
 genuine in-silico PCR (isPCR) model. These items are valuable but not blocking for clinical
 utility; the v1.0 BLAST approach (once BUG-01 is fixed) is a reasonable heuristic.
+
+---
+
+### ARCH-01 · Implement plexity penalty in cost function
+
+**Files: `src/plexus/config.py`, `src/plexus/selector/cost.py`**
+
+`MultiplexPickerParameters` defines `target_plexity`, `minimum_plexity`, `maximum_plexity`,
+`wt_lt`, and `wt_gt`, but `MultiplexCostFunction.calc_cost()` never reads these fields. The
+current selectors always include every junction that has at least one valid candidate pair, so
+the plexity term would currently be a no-op.
+
+**Fix:** Implement the plexity cost term:
+`cost += wt_lt × max(0, target_plexity - n_pairs) + wt_gt × max(0, n_pairs - target_plexity)`
+
+This becomes meaningful when SPLIT-01 (automated panel splitting) is implemented, where the
+selector may need to leave some targets out of a given pool to meet thermodynamic constraints.
+Implementing it now keeps the config fields honest and makes the infrastructure ready.
+
+> **Note for v1.0 users:** Currently, all junctions with at least one valid primer pair are
+> always included in the multiplex. The `target_plexity`, `minimum_plexity`, and
+> `maximum_plexity` config parameters are reserved for a future release that supports partial
+> panel selection and pool splitting.
 
 ---
 
@@ -318,7 +378,6 @@ the BLAST database may be incomplete.
 ---
 
 ### ISPCR-04 · Improve AmpliconFinder: cross-target interaction matrix
-
 **File: `src/plexus/blast/offtarget_finder.py`**
 
 Build on FEAT-02 (v1.0 cross-target classification) to produce a structured cross-target
@@ -333,7 +392,6 @@ question during panel validation.
 ---
 
 ### PERF-01 · Enable parallel primer thermodynamics by default
-
 **File: `src/plexus/designer/design.py`**
 
 `design_multiplex_primers()` accepts a `parallel=False` parameter that enables concurrent
@@ -385,6 +443,28 @@ consistently to junction coordinates, VCF queries, and BLAST sequence IDs.
 
 ---
 
+### REPT-02 · Visual QC Report (HTML)
+
+**Severity: Low**
+
+Transform the `panel_qc.json` (REPT-01) into a visual, standalone HTML report. This should
+include Plotly or Seaborn charts for distributions and a searchable heatmap for the
+cross-reactivity matrix, facilitating rapid review by clinical lab staff.
+
+---
+
+### SPLIT-01 · Automated Panel Splitting
+
+**Severity: Future**
+
+Implement an optimization algorithm to partition large panels into multiple pools (e.g., 2x20plex)
+to minimize intra-pool dimer interactions. This addresses cases where a single multiplex is
+thermodynamically impossible due to unavoidable primer-pair interactions. This is a highly
+complex feature, and out of scope for the moment, but would be a great addition to the
+project.
+
+---
+
 ### TEST-01 · End-to-end integration test with real BLAST
 
 **File: `tests/test_integration.py`**
@@ -399,25 +479,31 @@ and AmpliconFinder pairing logic together.
 
 ## Summary Table
 
-| ID | Description | Version | Severity |
-|---|---|---|---|
-| BUG-01 | Fix `from_3prime` annotation (`qlen` vs `length`) | v1.0 | Critical |
-| BUG-02 | Fix `product_bp` off-by-one in AmpliconFinder | v1.0 | Minor |
-| BUG-03 | Fix BLAST+ v5 database detection | v1.0 | Important |
-| FEAT-01 | Switch to `blastn-short` task for primer queries | v1.0 | Important |
-| FEAT-02 | Cross-target vs off-target amplicon classification | v1.0 | Important |
-| FEAT-03 | Remove dead code from AmpliconFinder | v1.0 | Minor |
-| ARCH-01 | Implement or remove plexity penalty in cost function | v1.0 | Important |
-| ARCH-02 | Clarify `design_start` coordinate convention | v1.0 | Minor |
-| ARCH-03 | Replace `print()` with `logger` in blast_runner | v1.0 | Minor |
-| DOC-01 | Document input CSV format | v1.0 | Important |
-| DOC-02 | Chromosome naming validation / pre-flight check | v1.0 | Important |
-| ISPCR-01 | ntthal ΔG scoring for BLAST binding sites | v1.1 | Important |
-| ISPCR-02 | ΔG-weighted off-target cost in selector | v1.1 | Important |
-| ISPCR-03 | Template mispriming check | v1.1 | Low |
-| ISPCR-04 | Cross-target interaction matrix output | v1.1 | Low |
-| PERF-01 | Parallel thermodynamics by default | v1.1 | Low |
-| PERF-02 | Pre-filter candidates per junction before optimisation | v1.1 | Low |
-| EXT-01 | Additional genome presets (hg19, mm39, GRCh38_no_alt) | v1.1 | Low |
-| EXT-02 | Chromosome naming normalisation | v1.1 | Low |
-| TEST-01 | End-to-end integration test with real BLAST | v1.1 | Important |
+| ID | Description | Version | Severity | Status |
+|---|---|---|---|---|
+| ~~BUG-01~~ | ~~Fix `from_3prime` annotation (`qlen` vs `length`)~~ | ~~v1.0~~ | ~~Critical~~ | ✅ v0.4.4 |
+| ~~BUG-02~~ | ~~Fix `product_bp` off-by-one in AmpliconFinder~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |
+| ~~BUG-03~~ | ~~Fix BLAST+ v5 database detection~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.4 |
+| FEAT-01 | Switch to `blastn-short` task for primer queries | v1.0 | Important | |
+| FEAT-02 | Cross-target vs off-target amplicon classification | v1.0 | Important | |
+| FEAT-03 | Remove dead code from AmpliconFinder | v1.0 | Minor | |
+| REPT-01 | Basic Panel QC Report (JSON) | v1.0 | Important | |
+| AUDT-01 | Tool versions and data checksums | v1.0 | Important | |
+| SYS-01 | Pre-flight disk space check | v1.0 | Minor | |
+| CLI-01 | `plexus init` template generation | v1.0 | Important | |
+| ARCH-02 | Clarify `design_start` coordinate convention | v1.0 | Minor | |
+| ~~ARCH-03~~ | ~~Replace `print()` with `logger` in blast_runner~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |
+| DOC-01 | Document input CSV format | v1.0 | Important | |
+| DOC-02 | Chromosome naming validation / pre-flight check | v1.0 | Important | |
+| ARCH-01 | Implement plexity penalty in cost function | v1.1 | Important | |
+| ISPCR-01 | ntthal ΔG scoring for BLAST binding sites | v1.1 | Important | |
+| ISPCR-02 | ΔG-weighted off-target cost in selector | v1.1 | Important | |
+| ISPCR-03 | Template mispriming check | v1.1 | Low | |
+| ISPCR-04 | Cross-target interaction matrix output | v1.1 | Low | |
+| PERF-01 | Parallel thermodynamics by default | v1.1 | Low | |
+| PERF-02 | Pre-filter candidates per junction before optimisation | v1.1 | Low | |
+| EXT-01 | Additional genome presets | v1.1 | Low | |
+| EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
+| REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
+| SPLIT-01 | Automated Panel Splitting | Future | Future | |
+| TEST-01 | End-to-end integration test with real BLAST | v1.1 | Important | |

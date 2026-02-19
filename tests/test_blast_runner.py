@@ -37,6 +37,30 @@ def test_create_database_skips_if_exists(runner):
             mock_run.assert_not_called()
 
 
+def test_create_database_skips_if_exists_v5(runner):
+    """v5 database: .njs manifest present, .nhr absent — must skip makeblastdb."""
+
+    def isfile_v5(path):
+        return path.endswith(".njs")
+
+    with patch("subprocess.run") as mock_run:
+        with patch("os.path.isfile", side_effect=isfile_v5):
+            runner.create_database()
+            mock_run.assert_not_called()
+
+
+def test_create_database_skips_if_exists_v4(runner):
+    """v4 database: .nhr present, .njs absent — must skip makeblastdb."""
+
+    def isfile_v4(path):
+        return path.endswith(".nhr")
+
+    with patch("subprocess.run") as mock_run:
+        with patch("os.path.isfile", side_effect=isfile_v4):
+            runner.create_database()
+            mock_run.assert_not_called()
+
+
 def test_run_command(runner, tmp_path):
     output_archive = tmp_path / "output.asn"
     runner.db_path = "/fake/db"

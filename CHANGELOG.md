@@ -5,6 +5,15 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 19-02-2026
+
+### Fixed
+
+- **BUG-01 · `from_3prime` annotation uses alignment length instead of query length** (`src/plexus/blast/annotator.py:28`): `row["length"]` (alignment length) replaced with `row["qlen"]` (query/primer length). The old comparison caused two classes of silent error in every BLAST run: 5′-anchored partial matches were labelled as 3′ hits (false positive — primer cannot extend but was counted as predicted_bound, inflating off-target counts); genuine 3′-end partial matches failed the check (false negative — primer can extend but the off-target was not detected). The fix uses `qlen`, which is already present in `BLAST_COLS` and loaded into the DataFrame on every run. Tests updated with physically consistent fixture data and a new `test_from_3prime_annotation_semantics` regression test covering both scenarios explicitly.
+- **BUG-02 · `product_bp` off-by-one in `AmpliconFinder`** (`src/plexus/blast/offtarget_finder.py:90`): `product_bp` was computed as `row["sstart"] - F_start`, which under-counts by one base because BLAST coordinates are inclusive on both ends (a primer at 1000 paired with a reverse hit at 1200 spans 201 bp, not 200). Fixed by adding `+ 1`. A dedicated regression test `test_amplicon_size_inclusive_coordinates` and a parametrized `test_amplicon_sizes_various` suite were added to `tests/test_offtarget_finder.py`.
+- **BUG-03 · BLAST+ v5 database detection fails** (`src/plexus/blast/blast_runner.py:66`): The database existence check required all three v4 files (`.nhr`, `.nin`, `.nsq`) to be present. BLAST+ ≥ 2.12 (v5) produces a `.njs` JSON manifest and may omit some v4 files, causing the check to report the database as absent and triggering an unnecessary `makeblastdb` re-run. The check now detects either a v5 database (`.njs` manifest) or a v4 database (`.nhr` header file), whichever is present. Two new tests — `test_create_database_skips_if_exists_v5` and `test_create_database_skips_if_exists_v4` — verify each path independently.
+- **ARCH-03 · `print()` replaced with `logger` in `blast_runner.py`** (`src/plexus/blast/blast_runner.py:68`): The "database already exists" message was emitted via `print()`, bypassing loguru and breaking log capture in tests and pipeline log files. Replaced with `logger.info()`, consistent with the rest of the project. Fixed together with BUG-03.
+
 ## [0.4.3] - 19-02-2026
 
 ### Added
