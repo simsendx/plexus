@@ -186,7 +186,7 @@ To satisfy clinical audit and reproducibility requirements:
 
 ---
 
-### SYS-01 · Pre-flight Disk Space Check
+### ~~SYS-01 · Pre-flight Disk Space Check~~ ✅ Fixed in v0.4.5
 
 **Severity: Minor · Files: `src/plexus/utils/env.py`**
 
@@ -194,6 +194,9 @@ Before writing BLAST output or intermediate files, verify that the output direct
 sufficient free disk space. Issue a clear warning if available space is below a conservative
 threshold (e.g., 2 GB). This prevents silent failures mid-pipeline on systems with full or
 near-full disks.
+
+**Fix:** Implemented `check_disk_space()` in `src/plexus/utils/env.py` and integrated it into the
+`run_pipeline()` pre-flight checks.
 
 ---
 
@@ -498,7 +501,7 @@ and AmpliconFinder pairing logic together.
 | ~~FEAT-03~~ | ~~Remove dead code from AmpliconFinder~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
 | REPT-01 | Basic Panel QC Report (JSON) | v1.0 | Important | |
 | ~~AUDT-01~~ | ~~Tool versions and data checksums~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
-| SYS-01 | Pre-flight disk space check | v1.0 | Minor | |
+| ~~SYS-01~~ | ~~Pre-flight disk space check~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
 | CLI-01 | `plexus init` template generation | v1.0 | Important | Partial v0.4.5 |
 | ~~ARCH-02~~ | ~~Clarify `design_start` coordinate convention~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
 | ~~ARCH-03~~ | ~~Replace `print()` with `logger` in blast_runner~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |

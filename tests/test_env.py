@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from plexus.utils.env import (
+    check_disk_space,
     check_executable,
     get_missing_tools,
     get_plexus_version,
@@ -104,3 +105,15 @@ def test_get_primer3_version():
     """Returns a string or None."""
     version = get_primer3_version()
     assert version is None or isinstance(version, str)
+
+
+def test_check_disk_space():
+    """Verify that check_disk_space correctly reports status based on thresholds."""
+    with patch("shutil.disk_usage") as mock_usage:
+        # Sufficient space: 10 GB free
+        mock_usage.return_value.free = 10 * 1024**3
+        assert check_disk_space("/tmp", threshold_gb=2.0) is True
+
+        # Insufficient space: 1 GB free
+        mock_usage.return_value.free = 1 * 1024**3
+        assert check_disk_space("/tmp", threshold_gb=2.0) is False

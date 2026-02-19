@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tool version capture**: New `get_tool_version()`, `get_tool_versions()`, `get_plexus_version()`, and `get_primer3_version()` utilities in `plexus.utils.env`.
 - **Enhanced `plexus status`**: Now shows operational mode and truncated SHA-256 checksums alongside resource readiness.
 - **FEAT-01 · `blastn-short` task for primer queries**: `BlastRunner.run()` now uses `-task blastn-short` by default, tuned for primer-length queries (<30 bp) with word_size=7, reward 1, penalty −3, and gap costs 5/2. The hardcoded `word_size=11` in `specificity.py` has been removed. This improves sensitivity for off-target binding sites where the 3′-terminal region contains mismatches.
+- **SYS-01 · Pre-flight disk space check**: The pipeline now verifies that the output directory (or its parent) has sufficient free disk space (threshold: 2 GB) before starting. A warning is issued if space is low, helping to prevent mid-run failures due to full disks. Added `check_disk_space()` utility in `src/plexus/utils/env.py`.
 
 ### Fixed
 
@@ -24,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **FEAT-03 · Dead code removed from `AmpliconFinder`** (`src/plexus/blast/offtarget_finder.py`): `create_ontarget_dataframe()` and `create_offtarget_dataframe()` were never called by the pipeline and used an incompatible `primer_df` schema. Both methods and the associated TODO comments have been removed. The class docstring now documents the expected `bound_df` input schema and the generated `amplicon_df` output schema.
+- **FEAT-03 · Dead code removed from `AmpliconFinder`** (`src/plexus/blast/offtarget_finder.py`): `create_ontarget_dataframe()` and `create_offtarget_dataframe()` were never called by the pipeline and used an incompatible `primer_df` schema. Both methods, the `Position` helper class, and the associated TODO comments have been removed. The class docstring now documents the expected `bound_df` input schema and the generated `amplicon_df` output schema.
 - **`plexus init` requires explicit files by default**: Running `plexus init` without `--fasta` (and without `--download`) now errors with an actionable message, preventing accidental multi-GB downloads.
 - **`get_cache_dir()` consolidated**: Moved from `plexus.snpcheck.resources` to `plexus.resources` to serve as the single source of truth. The old import path continues to work via re-export.
 - **gnomAD URLs deduplicated**: `plexus.snpcheck.resources` now derives URLs from `GENOME_PRESETS` instead of hardcoding them.

@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.metadata
 import shutil
 import subprocess
+from pathlib import Path
 
 
 def check_executable(name: str) -> bool:
@@ -87,3 +88,40 @@ def get_primer3_version() -> str | None:
         return importlib.metadata.version("primer3-py")
     except importlib.metadata.PackageNotFoundError:
         return None
+
+
+def check_disk_space(path: str | Path, threshold_gb: float = 2.0) -> bool:
+    """Verify that the target directory has sufficient free disk space.
+
+    Args:
+        path: Path to the directory to check.
+        threshold_gb: Minimum free space required in GB (default: 2.0).
+
+    Returns:
+        True if space is above threshold, False otherwise.
+    """
+    from loguru import logger
+
+    path = Path(path)
+    # Use parent if the path doesn't exist yet
+    check_path = path if path.exists() else path.parent
+
+    # If parent also doesn't exist, we can't check yet (will be created)
+    # but we can try the highest existing ancestor
+    while not check_path.exists() and check_path.parent != check_path:
+        check_path = check_path.parent
+
+    try:
+        usage = shutil.disk_usage(check_path)
+        free_gb = usage.free / (1024**3)
+
+        if free_gb < threshold_gb:
+            logger.warning(
+                f"Low disk space: {free_gb:.2f} GB free on {check_path}. "
+                f"Threshold is {threshold_gb} GB. Pipeline may fail during output writing."
+            )
+            return False
+        return True
+    except (OSError, ValueError) as e:
+        logger.debug(f"Could not check disk space on {check_path}: {e}")
+        return True  # Proceed anyway if check fails

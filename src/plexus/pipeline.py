@@ -24,6 +24,7 @@ from plexus.designer.design import design_primers
 from plexus.designer.multiplexpanel import MultiplexPanel, panel_factory
 from plexus.logging import configure_file_logging
 from plexus.utils.env import (
+    check_disk_space,
     get_missing_tools,
     get_plexus_version,
     get_primer3_version,
@@ -234,6 +235,9 @@ def run_pipeline(
         )
         logger.error(msg)
         raise RuntimeError(msg)
+
+    # Check for sufficient disk space in output directory
+    check_disk_space(output_dir)
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
