@@ -1009,12 +1009,18 @@ class MultiplexPanel:
         df.to_csv(file_path, index=False)
         logger.info(f"Saved {len(df)} off-target products to {file_path}")
 
-    def save_panel_summary_json(self, file_path: str, pipeline_result) -> None:
+    def save_panel_summary_json(
+        self,
+        file_path: str,
+        pipeline_result,
+        provenance: dict | None = None,
+    ) -> None:
         """Save panel metadata and summary to JSON.
 
         Args:
             file_path: Output JSON path.
             pipeline_result: PipelineResult object with solutions and config.
+            provenance: Optional provenance dict (tool versions, checksums, etc.).
         """
         total_pairs = sum(len(j.primer_pairs) for j in self.junctions if j.primer_pairs)
 
@@ -1034,6 +1040,8 @@ class MultiplexPanel:
             "errors": pipeline_result.errors,
             "config": pipeline_result.config.model_dump(),
         }
+        if provenance:
+            summary["provenance"] = provenance
 
         with open(file_path, "w") as f:
             json.dump(summary, f, indent=2, default=str)

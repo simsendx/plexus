@@ -379,13 +379,16 @@ class TestInitCommand:
 
     @patch("plexus.resources.init_genome")
     @patch("plexus.resources.genome_status")
-    def test_init_with_local_fasta_and_vcf(self, mock_status, mock_init):
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_init_with_local_fasta_and_vcf(self, _mock_mode, mock_status, mock_init):
         """Test init with local FASTA and VCF skips downloads."""
         mock_status.return_value = {
             "fasta": True,
             "fai": True,
             "blast_db": True,
             "snp_vcf": True,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": "b" * 64,
         }
 
         with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
@@ -420,13 +423,16 @@ class TestInitCommand:
 
     @patch("plexus.resources.init_genome")
     @patch("plexus.resources.genome_status")
-    def test_init_skip_flags(self, mock_status, mock_init):
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_init_skip_flags(self, _mock_mode, mock_status, mock_init):
         """Test that --skip-blast and --skip-snp are passed through."""
         mock_status.return_value = {
             "fasta": True,
             "fai": True,
             "blast_db": False,
             "snp_vcf": False,
+            "fasta_sha256": None,
+            "snp_vcf_sha256": None,
         }
 
         with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
@@ -564,6 +570,202 @@ class TestCLIShortFlags:
             assert call_kwargs["panel_name"] == "test"
             assert call_kwargs["genome"] == "hg38"
             assert call_kwargs["preset"] == "default"
+        finally:
+            Path(csv_path).unlink()
+            Path(fasta_path).unlink()
+
+
+class TestInitNewFlags:
+    """Tests for --download, --mode, --checksums flags on init."""
+
+    def test_init_requires_fasta_without_download(self):
+        """init without --download and without --fasta should error."""
+        result = runner.invoke(app, ["init", "--genome", "hg38", "--skip-snp"])
+        assert result.exit_code == 1
+        assert "--fasta" in (result.output + (result.stderr or ""))
+
+    def test_init_requires_snp_vcf_without_download(self):
+        """init without --download and without --snp-vcf should error (unless --skip-snp)."""
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        try:
+            result = runner.invoke(
+                app, ["init", "--genome", "hg38", "--fasta", fasta_path]
+            )
+            assert result.exit_code == 1
+            assert "--snp-vcf" in (result.output + (result.stderr or ""))
+        finally:
+            Path(fasta_path).unlink()
+
+    @patch("plexus.resources.init_genome")
+    @patch("plexus.resources.genome_status")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_init_with_download_flag(self, _mock_mode, mock_status, mock_init):
+        """init with --download should pass download=True to init_genome."""
+        mock_status.return_value = {
+            "fasta": True,
+            "fai": True,
+            "blast_db": True,
+            "snp_vcf": True,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": None,
+        }
+        result = runner.invoke(app, ["init", "--genome", "hg38", "--download"])
+        assert result.exit_code == 0
+        call_kwargs = mock_init.call_args[1]
+        assert call_kwargs["download"] is True
+
+    @patch("plexus.resources.init_genome")
+    @patch("plexus.resources.genome_status")
+    @patch("plexus.resources.get_operational_mode", return_value="compliance")
+    def test_init_with_mode_compliance(self, _mock_mode, mock_status, mock_init):
+        """init --mode compliance passes through to init_genome."""
+        mock_status.return_value = {
+            "fasta": True,
+            "fai": True,
+            "blast_db": True,
+            "snp_vcf": True,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": None,
+        }
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        try:
+            result = runner.invoke(
+                app,
+                ["init", "--fasta", fasta_path, "--skip-snp", "--mode", "compliance"],
+            )
+            assert result.exit_code == 0
+            assert mock_init.call_args[1]["mode"] == "compliance"
+        finally:
+            Path(fasta_path).unlink()
+
+    def test_init_invalid_mode(self):
+        """init with invalid mode exits with error."""
+        result = runner.invoke(app, ["init", "--mode", "invalid_mode", "--download"])
+        assert result.exit_code == 1
+        assert "Invalid mode" in (result.output + (result.stderr or ""))
+
+    @patch("plexus.resources.init_genome")
+    @patch("plexus.resources.genome_status")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_init_with_checksums(self, _mock_mode, mock_status, mock_init):
+        """init --checksums passes the path to init_genome."""
+        mock_status.return_value = {
+            "fasta": True,
+            "fai": True,
+            "blast_db": True,
+            "snp_vcf": True,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": None,
+        }
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as ck_f:
+            checksums_path = ck_f.name
+            ck_f.write(b"abc123  genome.fa\n")
+        try:
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--fasta",
+                    fasta_path,
+                    "--skip-snp",
+                    "--checksums",
+                    checksums_path,
+                ],
+            )
+            assert result.exit_code == 0
+            assert str(mock_init.call_args[1]["checksums"]) == checksums_path
+        finally:
+            Path(fasta_path).unlink()
+            Path(checksums_path).unlink()
+
+
+class TestRunStrictFlag:
+    """Tests for --strict flag on run command."""
+
+    @patch("plexus.resources.verify_resource_checksums")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    @patch("plexus.orchestrator.run_pipeline")
+    def test_run_strict_passes_with_valid_checksums(
+        self, mock_pipeline, _mock_mode, mock_verify
+    ):
+        """--strict with matching checksums allows pipeline to run."""
+        mock_verify.return_value = {"fasta": True, "snp_vcf": True}
+        mock_panel = MagicMock()
+        mock_panel.junctions = []
+        mock_pipeline.return_value = PipelineResult(
+            panel=mock_panel,
+            output_dir=Path("/tmp/output"),
+            config=MagicMock(),
+            steps_completed=[],
+            errors=[],
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_f:
+            csv_path = csv_f.name
+            csv_f.write(b"Name,Chrom,Position\n")
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        try:
+            result = runner.invoke(
+                app,
+                ["run", "--input", csv_path, "--fasta", fasta_path, "--strict"],
+            )
+            assert result.exit_code == 0
+            mock_verify.assert_called_once_with("hg38")
+        finally:
+            Path(csv_path).unlink()
+            Path(fasta_path).unlink()
+
+    @patch("plexus.resources.verify_resource_checksums")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_run_strict_fails_on_fasta_mismatch(self, _mock_mode, mock_verify):
+        """--strict with FASTA checksum mismatch should exit with error."""
+        mock_verify.return_value = {"fasta": False, "snp_vcf": True}
+
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_f:
+            csv_path = csv_f.name
+            csv_f.write(b"Name,Chrom,Position\n")
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        try:
+            result = runner.invoke(
+                app,
+                ["run", "--input", csv_path, "--fasta", fasta_path, "--strict"],
+            )
+            assert result.exit_code == 1
+            assert "checksum mismatch" in strip_ansi(result.output).lower()
+        finally:
+            Path(csv_path).unlink()
+            Path(fasta_path).unlink()
+
+    @patch("plexus.resources.verify_resource_checksums")
+    @patch("plexus.resources.get_operational_mode", return_value="compliance")
+    def test_run_compliance_mode_auto_verifies(self, _mock_mode, mock_verify):
+        """Compliance mode triggers checksum verification without --strict."""
+        mock_verify.return_value = {"fasta": False, "snp_vcf": None}
+
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as csv_f:
+            csv_path = csv_f.name
+            csv_f.write(b"Name,Chrom,Position\n")
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+        try:
+            result = runner.invoke(
+                app,
+                ["run", "--input", csv_path, "--fasta", fasta_path],
+            )
+            assert result.exit_code == 1
+            mock_verify.assert_called_once()
         finally:
             Path(csv_path).unlink()
             Path(fasta_path).unlink()

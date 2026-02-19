@@ -10,37 +10,31 @@
 
 from __future__ import annotations
 
-import os
 import urllib.request
 from pathlib import Path
 
 from loguru import logger
 
-# gnomAD AF-only VCF (hg38) from the GATK best-practices bucket
-GNOMAD_VCF_URL = (
-    "https://storage.googleapis.com/gatk-best-practices/somatic-hg38/"
-    "af-only-gnomad.hg38.vcf.gz"
+# Re-export get_cache_dir from the central resources module so that existing
+# code and test mocks targeting ``plexus.snpcheck.resources.get_cache_dir``
+# continue to work.
+from plexus.resources import (  # noqa: F401
+    DEFAULT_DATA_DIR as DEFAULT_CACHE_DIR,
 )
-GNOMAD_TBI_URL = (
-    "https://storage.googleapis.com/gatk-best-practices/somatic-hg38/"
-    "af-only-gnomad.hg38.vcf.gz.tbi"
+from plexus.resources import (
+    GENOME_PRESETS,
+    get_cache_dir,
 )
 
-GNOMAD_VCF_FILENAME = "af-only-gnomad.hg38.vcf.gz"
-GNOMAD_TBI_FILENAME = "af-only-gnomad.hg38.vcf.gz.tbi"
+# Derive URLs from the central preset rather than duplicating them.
+_HG38 = GENOME_PRESETS["hg38"]
+GNOMAD_VCF_URL: str = _HG38["snp_vcf_url"]
+GNOMAD_TBI_URL: str = _HG38["snp_tbi_url"]
 
-DEFAULT_CACHE_DIR = Path.home() / ".plexus" / "data"
+GNOMAD_VCF_FILENAME: str = _HG38["snp_vcf_filename"]
+GNOMAD_TBI_FILENAME: str = _HG38["snp_tbi_filename"]
 
-ENV_DATA_DIR = "PLEXUS_DATA_DIR"
 ENV_SNP_VCF = "PLEXUS_SNP_VCF"
-
-
-def get_cache_dir() -> Path:
-    """Return the cache directory, respecting ``$PLEXUS_DATA_DIR``."""
-    env = os.environ.get(ENV_DATA_DIR)
-    if env:
-        return Path(env)
-    return DEFAULT_CACHE_DIR
 
 
 def get_cached_vcf_path() -> Path:

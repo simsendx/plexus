@@ -23,7 +23,12 @@ from plexus.config import DesignerConfig, load_config
 from plexus.designer.design import design_primers
 from plexus.designer.multiplexpanel import MultiplexPanel, panel_factory
 from plexus.logging import configure_file_logging
-from plexus.utils.env import get_missing_tools
+from plexus.utils.env import (
+    get_missing_tools,
+    get_plexus_version,
+    get_primer3_version,
+    get_tool_versions,
+)
 
 
 @dataclass
@@ -103,6 +108,50 @@ class MultiPanelResult:
                 for pid, r in self.panel_results.items()
             },
         }
+
+
+def _collect_provenance(
+    fasta_file: Path,
+    snp_vcf: str | Path | None,
+    genome: str,
+    run_blast: bool,
+    skip_snpcheck: bool,
+) -> dict:
+    """Collect tool versions, resource paths, and checksums for provenance."""
+    import datetime
+
+    from plexus.resources import _load_registry, get_operational_mode
+
+    tool_versions = get_tool_versions(["blastn", "bcftools", "makeblastdb"])
+
+    # Look up stored checksums from registry (avoid re-hashing large files)
+    fasta_sha256 = None
+    snp_vcf_sha256 = None
+    try:
+        registry = _load_registry()
+        for entry in registry.values():
+            if entry.get("fasta") == str(fasta_file):
+                fasta_sha256 = entry.get("fasta_sha256")
+            vcf_str = str(snp_vcf) if snp_vcf else None
+            if vcf_str and entry.get("snp_vcf") == vcf_str:
+                snp_vcf_sha256 = entry.get("snp_vcf_sha256")
+    except Exception:
+        pass
+
+    return {
+        "plexus_version": get_plexus_version(),
+        "primer3_version": get_primer3_version(),
+        "tool_versions": tool_versions,
+        "run_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "operational_mode": get_operational_mode(),
+        "genome": genome,
+        "fasta_path": str(fasta_file),
+        "fasta_sha256": fasta_sha256,
+        "snp_vcf_path": str(snp_vcf) if snp_vcf else None,
+        "snp_vcf_sha256": snp_vcf_sha256,
+        "run_blast": run_blast,
+        "skip_snpcheck": skip_snpcheck,
+    }
 
 
 def run_pipeline(
@@ -189,9 +238,24 @@ def run_pipeline(
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── Write provenance record ──────────────────────────────────────────────
+    provenance = _collect_provenance(
+        fasta_file=fasta_file,
+        snp_vcf=snp_vcf,
+        genome=genome,
+        run_blast=run_blast,
+        skip_snpcheck=skip_snpcheck,
+    )
+    import json as _json
+
+    provenance_path = output_dir / "provenance.json"
+    with provenance_path.open("w") as _pf:
+        _json.dump(provenance, _pf, indent=2, default=str)
+
     # Enable file logging to output directory
     log_file = configure_file_logging(str(output_dir), debug=debug)
     logger.info(f"Log file: {log_file}")
+    logger.info(f"Provenance written to {provenance_path}")
 
     # Load configuration
     logger.info("Loading configuration...")
@@ -435,10 +499,11 @@ def run_pipeline(
                 result.selected_pairs,
             )
 
-        # Panel summary JSON
+        # Panel summary JSON (includes provenance if available)
         panel.save_panel_summary_json(
             str(output_dir / "panel_summary.json"),
             result,
+            provenance=provenance,
         )
 
         # Failed junctions report

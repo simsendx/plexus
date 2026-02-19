@@ -168,17 +168,22 @@ This JSON can be expanded in later versions (v1.1) to support visual plots and H
 
 ---
 
-### AUDT-01 · Compliance & Integrity (Locked Versions & Checksums)
+### ~~AUDT-01 · Compliance & Integrity (Locked Versions & Checksums)~~ ✅ Implemented in v0.4.5
 
-**Severity: Important · Files: `src/plexus/pipeline.py`, `utils/env.py`**
+**Severity: Important · Files: `src/plexus/pipeline.py`, `utils/env.py`, `resources.py`**
 
 To satisfy clinical audit and reproducibility requirements:
 
 - **Tool Versions:** Capture and log the exact versions of system dependencies (`blastn`,
    `bcftools`) and library versions (`primer3-py`) in the `panel_summary.json`.
-- **Data Checksums:** Calculate and store MD5 or SHA256 checksums for the input reference
-   FASTA and SNP VCF files. Warn if design is run against a file that does not match the
-   stored checksum.
+- **Data Checksums:** Calculate and store SHA-256 checksums for the input reference
+   FASTA and SNP VCF files. Verify checksums at runtime in compliance mode or with `--strict`.
+- **Provenance output:** `provenance.json` written to output directory with tool versions,
+   file checksums, operational mode, and run timestamp. Also embedded in `panel_summary.json`.
+- **Operational modes:** `research` (default) and `compliance` modes stored in global config.
+   Compliance mode enforces checksum verification on every run.
+- **User-provided checksums:** `--checksums` flag accepts a `sha256sum`-format file for
+   verifying FASTA and VCF integrity at init time.
 
 ---
 
@@ -193,7 +198,7 @@ near-full disks.
 
 ---
 
-### CLI-01 · `plexus init` template generation
+### CLI-01 · `plexus init` template generation (partially addressed in v0.4.5)
 
 **Severity: Important · File: `src/plexus/cli.py`**
 
@@ -205,6 +210,10 @@ Extend the existing `plexus init` command to generate starter files for a new de
 This gives new users a concrete starting point without reading the docs. Keep the command
 non-interactive — parameters are passed as flags, consistent with the existing `--genome`
 and `--fasta` options.
+
+**v0.4.5 progress:** `plexus init` restructured to require explicit `--fasta`/`--snp-vcf`
+by default; downloads demoted to `--download` flag. Added `--mode` and `--checksums` flags.
+Template generation (junctions.csv, designer_config.json) still pending.
 
 **Deferred to v1.x:** Interactive preset selection wizard, vendor-specific oligo ordering
 formats (e.g. IDT plate layout), and workspace-level checksum enforcement profiles.
@@ -488,9 +497,9 @@ and AmpliconFinder pairing logic together.
 | FEAT-02 | Cross-target vs off-target amplicon classification | v1.0 | Important | |
 | FEAT-03 | Remove dead code from AmpliconFinder | v1.0 | Minor | |
 | REPT-01 | Basic Panel QC Report (JSON) | v1.0 | Important | |
-| AUDT-01 | Tool versions and data checksums | v1.0 | Important | |
+| ~~AUDT-01~~ | ~~Tool versions and data checksums~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
 | SYS-01 | Pre-flight disk space check | v1.0 | Minor | |
-| CLI-01 | `plexus init` template generation | v1.0 | Important | |
+| CLI-01 | `plexus init` template generation | v1.0 | Important | Partial v0.4.5 |
 | ARCH-02 | Clarify `design_start` coordinate convention | v1.0 | Minor | |
 | ~~ARCH-03~~ | ~~Replace `print()` with `logger` in blast_runner~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |
 | DOC-01 | Document input CSV format | v1.0 | Important | |

@@ -177,6 +177,13 @@ def run(
             help="Write DEBUG-level messages to the log file (default: INFO+ only).",
         ),
     ] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help="Verify resource checksums before running (always on in compliance mode).",
+        ),
+    ] = False,
 ) -> None:
     """
     Run the complete multiplex primer design pipeline.
@@ -190,7 +197,11 @@ def run(
     """
     from plexus.orchestrator import run_multi_panel
     from plexus.pipeline import MultiPanelResult
-    from plexus.resources import get_registered_fasta
+    from plexus.resources import (
+        get_operational_mode,
+        get_registered_fasta,
+        verify_resource_checksums,
+    )
 
     if fasta_file is None:
         fasta_file = get_registered_fasta(genome)
@@ -201,6 +212,30 @@ def run(
                 err=True,
             )
             raise typer.Exit(code=1)
+
+    # ── Checksum verification ────────────────────────────────────────────────
+    op_mode = get_operational_mode()
+    should_verify = strict or (op_mode == "compliance")
+    if should_verify:
+        check = verify_resource_checksums(genome)
+        if check.get("fasta") is False:
+            console.print(
+                "[bold red]Error: FASTA checksum mismatch. "
+                "File may have been modified or corrupted since registration.[/bold red]"
+            )
+            raise typer.Exit(code=1)
+        if check.get("snp_vcf") is False and not skip_snpcheck:
+            console.print(
+                "[bold red]Error: SNP VCF checksum mismatch. "
+                "File may have been modified or corrupted since registration.[/bold red]"
+            )
+            raise typer.Exit(code=1)
+        if check.get("fasta") is None and op_mode == "compliance":
+            console.print(
+                "[yellow]Warning: compliance mode active but no checksums "
+                "stored for genome resources. Run `plexus init` to register "
+                "resources with checksums.[/yellow]"
+            )
 
     console.print("[bold green]Plexus[/bold green]")
     console.print(f"  Input:  {input_file}")
@@ -278,11 +313,14 @@ def run(
 @app.command()
 def status() -> None:
     """Show Plexus version and resource status."""
-    from plexus.resources import GENOME_PRESETS, genome_status
+    from plexus.resources import GENOME_PRESETS, genome_status, get_operational_mode
     from plexus.snpcheck.resources import resource_status_message
     from plexus.utils.env import check_executable
 
+    op_mode = get_operational_mode()
+
     console.print(f"[bold green]Plexus[/bold green] version {__version__}")
+    console.print(f"  Mode: [bold]{op_mode}[/bold]")
     console.print(f"  {resource_status_message()}")
     console.print()
 
@@ -297,12 +335,18 @@ def status() -> None:
     for g in GENOME_PRESETS:
         s = genome_status(g)
         marks = {True: "[green]✓[/green]", False: "[red]✗[/red]"}
+        fasta_cksum = (
+            f" sha256:{s['fasta_sha256'][:12]}…" if s.get("fasta_sha256") else ""
+        )
+        vcf_cksum = (
+            f" sha256:{s['snp_vcf_sha256'][:12]}…" if s.get("snp_vcf_sha256") else ""
+        )
         console.print(
             f"  {g}:"
-            f"  FASTA {marks[s['fasta']]}"
+            f"  FASTA {marks[s['fasta']]}{fasta_cksum}"
             f"  FAI {marks[s['fai']]}"
             f"  BLAST {marks[s['blast_db']]}"
-            f"  gnomAD VCF {marks[s['snp_vcf']]}"
+            f"  gnomAD VCF {marks[s['snp_vcf']]}{vcf_cksum}"
         )
 
 
@@ -321,14 +365,14 @@ def init(
         typer.Option(
             "--fasta",
             "-f",
-            help="Use a local FASTA instead of downloading.",
+            help="Path to a local reference FASTA file.",
         ),
     ] = None,
     snp_vcf: Annotated[
         Path | None,
         typer.Option(
             "--snp-vcf",
-            help="Use a local gnomAD VCF instead of downloading.",
+            help="Path to a local tabix-indexed gnomAD VCF file.",
         ),
     ] = None,
     skip_blast: Annotated[
@@ -337,20 +381,51 @@ def init(
     ] = False,
     skip_snp: Annotated[
         bool,
-        typer.Option("--skip-snp", help="Skip SNP VCF download/registration."),
+        typer.Option("--skip-snp", help="Skip SNP VCF registration."),
     ] = False,
     force: Annotated[
         bool,
         typer.Option(
-            "--force", help="Re-download and rebuild even if resources exist."
+            "--force", help="Rebuild indexes even if resources already exist."
         ),
     ] = False,
+    download: Annotated[
+        bool,
+        typer.Option(
+            "--download",
+            help="Download FASTA and/or gnomAD VCF from preset URLs. "
+            "Without this flag, --fasta and --snp-vcf are required.",
+        ),
+    ] = False,
+    mode: Annotated[
+        str | None,
+        typer.Option(
+            "--mode",
+            help="Set operational mode: 'research' (default) or 'compliance'. "
+            "Stored globally in ~/.plexus/config.json.",
+        ),
+    ] = None,
+    checksums: Annotated[
+        Path | None,
+        typer.Option(
+            "--checksums",
+            help="SHA-256 checksums file (sha256sum format) for verifying "
+            "FASTA and VCF at registration time.",
+        ),
+    ] = None,
 ) -> None:
-    """Download and index reference resources for a genome.
+    """Register and index reference resources for a genome.
 
-    Provide --fasta / --snp-vcf to use local files instead of downloading.
+    Provide --fasta and --snp-vcf to register local files (recommended).
+    Use --download to fetch files from preset URLs instead.
+    Use --checksums to verify files against known-good hashes.
     """
-    from plexus.resources import GENOME_PRESETS, genome_status, init_genome
+    from plexus.resources import (
+        GENOME_PRESETS,
+        genome_status,
+        get_operational_mode,
+        init_genome,
+    )
 
     if genome not in GENOME_PRESETS:
         supported = ", ".join(GENOME_PRESETS)
@@ -360,18 +435,47 @@ def init(
         )
         raise typer.Exit(code=1)
 
-    preset = GENOME_PRESETS[genome]
+    if mode is not None and mode not in ("research", "compliance"):
+        typer.echo(
+            f"Invalid mode '{mode}'. Must be 'research' or 'compliance'.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    # Validate that sources are provided when not downloading
+    if not download and fasta is None:
+        typer.echo(
+            "Error: --fasta is required when --download is not specified.\n"
+            "Provide a local FASTA file or use --download to fetch one.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if not download and snp_vcf is None and not skip_snp:
+        typer.echo(
+            "Error: --snp-vcf is required when --download is not specified "
+            "(or use --skip-snp to skip SNP checking).",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     console.print(
         f"[bold green]Plexus[/bold green] — initializing resources for [bold]{genome}[/bold]"
     )
     if fasta:
-        console.print(f"  FASTA:   {fasta} (local)")
-    else:
-        console.print(f"  FASTA:   {preset['fasta_size_note']} — downloading from UCSC")
+        console.print(f"  FASTA:     {fasta} (local)")
+    elif download:
+        preset = GENOME_PRESETS[genome]
+        console.print(
+            f"  FASTA:     {preset['fasta_size_note']} — downloading from UCSC"
+        )
     if snp_vcf:
-        console.print(f"  SNP VCF: {snp_vcf} (local)")
-    elif not skip_snp:
-        console.print("  SNP VCF: downloading gnomAD AF-only VCF from GATK bucket")
+        console.print(f"  SNP VCF:   {snp_vcf} (local)")
+    elif download and not skip_snp:
+        console.print("  SNP VCF:   downloading gnomAD AF-only VCF from GATK bucket")
+    if checksums:
+        console.print(f"  Checksums: {checksums}")
+    if mode:
+        console.print(f"  Mode:      {mode}")
     console.print()
 
     try:
@@ -382,6 +486,9 @@ def init(
             force=force,
             skip_blast=skip_blast,
             skip_snp=skip_snp,
+            download=download,
+            mode=mode,
+            checksums=checksums,
         )
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -398,10 +505,14 @@ def init(
 
     console.print()
     s = genome_status(genome)
+    op_mode = get_operational_mode()
     console.print(
         f"[bold green]Done![/bold green] Resources for [bold]{genome}[/bold]:"
     )
+    console.print(f"  Mode:    {op_mode}")
     console.print(f"  FASTA:   {'ready' if s['fasta'] else 'NOT ready'}")
+    if s.get("fasta_sha256"):
+        console.print(f"           sha256:{s['fasta_sha256'][:16]}…")
     console.print(f"  FAI:     {'ready' if s['fai'] else 'NOT ready'}")
     console.print(
         f"  BLAST:   {'ready' if s['blast_db'] else ('NOT ready' if not skip_blast else 'skipped')}"
@@ -409,6 +520,8 @@ def init(
     console.print(
         f"  gnomAD:  {'ready' if s['snp_vcf'] else ('NOT ready' if not skip_snp else 'skipped')}"
     )
+    if s.get("snp_vcf_sha256"):
+        console.print(f"           sha256:{s['snp_vcf_sha256'][:16]}…")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,24 @@ All notable changes to plexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 19-02-2026
+
+### Added
+
+- **AUDT-01 · Compliance & integrity (tool versions + data checksums)**: Pipeline runs now produce a `provenance.json` in the output directory capturing plexus version, primer3-py version, system tool versions (`blastn`, `bcftools`, `makeblastdb`), file checksums (SHA-256), operational mode, and run timestamp. Provenance is also embedded in `panel_summary.json`.
+- **Two operational modes**: `research` (default) and `compliance`, set via `plexus init --mode` and stored in `~/.plexus/config.json`. In compliance mode, resource checksums are verified automatically before every pipeline run.
+- **SHA-256 checksum verification**: `plexus init` computes and stores SHA-256 checksums for the reference FASTA and SNP VCF in the genome registry. Users can supply a `sha256sum`-format checksums file via `--checksums` to verify files at init time — init fails immediately on mismatch.
+- **`--strict` flag on `plexus run`**: Verifies resource checksums against the registry before running the pipeline. Always enabled in compliance mode.
+- **`--download` flag on `plexus init`**: Downloads from preset URLs are no longer the default. Provide local files with `--fasta`/`--snp-vcf`, or explicitly opt in to downloading with `--download`.
+- **Tool version capture**: New `get_tool_version()`, `get_tool_versions()`, `get_plexus_version()`, and `get_primer3_version()` utilities in `plexus.utils.env`.
+- **Enhanced `plexus status`**: Now shows operational mode and truncated SHA-256 checksums alongside resource readiness.
+
+### Changed
+
+- **`plexus init` requires explicit files by default**: Running `plexus init` without `--fasta` (and without `--download`) now errors with an actionable message, preventing accidental multi-GB downloads.
+- **`get_cache_dir()` consolidated**: Moved from `plexus.snpcheck.resources` to `plexus.resources` to serve as the single source of truth. The old import path continues to work via re-export.
+- **gnomAD URLs deduplicated**: `plexus.snpcheck.resources` now derives URLs from `GENOME_PRESETS` instead of hardcoding them.
+
 ## [0.4.4] - 19-02-2026
 
 ### Fixed
