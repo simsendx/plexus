@@ -592,6 +592,10 @@ class TestGetSnpVcf:
                 "plexus.snpcheck.snp_data.get_cached_vcf_path",
                 return_value=tmp_path / "gnomad.vcf.gz",
             ),
+            patch(
+                "plexus.snpcheck.snp_data.get_vcf_contigs",
+                return_value={"chr1", "chr7"},
+            ),
             patch("plexus.snpcheck.snp_data._check_bcftools", return_value="bcftools"),
             patch("subprocess.run", return_value=mock_result) as mock_run,
         ):
@@ -603,8 +607,9 @@ class TestGetSnpVcf:
                 output_dir=tmp_path,
             )
 
-            # bcftools should be called (index -l, view, index)
-            assert mock_run.call_count == 3
+            # bcftools should be called (view -R, index -t)
+            # (get_vcf_contigs is mocked, so its call is not recorded in mock_run)
+            assert mock_run.call_count == 2
             assert result == tmp_path / "snpcheck_regions.vcf.gz"
 
     def test_no_vcf_available_raises(self, tmp_path):

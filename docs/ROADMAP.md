@@ -304,6 +304,131 @@ and AmpliconFinder pairing logic together.
 
 ---
 
+### REPR-01 · Chromosome naming check at `plexus run` time in compliance mode
+
+**Severity: Important · Files: `src/plexus/pipeline.py`, `src/plexus/utils/utils.py`**
+
+`detect_chrom_naming_mismatch()` is currently called only inside `init_genome()` (i.e., at
+`plexus init` time). In compliance mode, `plexus run` is stateless — it bypasses the registry
+and accepts `--fasta` and `--snp-vcf` directly. A user can therefore supply a FASTA with `chr1`
+notation paired with a VCF using `1` notation and the pipeline will proceed without warning:
+bcftools region queries silently return zero variants, SNP penalties are never applied, and the
+provenance record gives no indication that the check was skipped.
+
+**Required change:**
+
+1. In `run_pipeline()`, after path validation and the compliance environment guard, call
+   `detect_chrom_naming_mismatch()` against the supplied `fasta_file` and `snp_vcf` when both
+   are present and SNP checking is not skipped.
+2. In compliance mode (`op_mode == "compliance"`), a detected mismatch must raise a descriptive
+   `ValueError` (consistent with the behaviour of `init_genome()` in compliance mode).
+3. In research mode, emit a `logger.warning()` — also consistent with the existing init behaviour.
+4. Record the outcome in `provenance.json` under a `chrom_naming_check` key:
+   `"pass"`, `"mismatch"`, `"skipped"` (SNP check disabled or VCF not provided), or
+   `"unavailable"` (contigs could not be read).
+
+**Context:** `DOC-02` (✅ v0.4.6) added this check at init time and introduced the shared
+`detect_chrom_naming_mismatch()` utility. This item extends its enforcement to the stateless
+run path that compliance mode uses.
+
+**Tests to add:** `tests/test_pipeline.py` (or `test_cli.py`) — mock `detect_chrom_naming_mismatch`
+to return a mismatch string; assert `ValueError` is raised in compliance mode and only a warning
+is logged in research mode.
+
+---
+
+### REPR-02 · Random seed for stochastic selectors
+
+**Severity: Important · Files: `src/plexus/selector/selectors.py`, `src/plexus/pipeline.py`, `src/plexus/cli.py`**
+
+The `GreedySearch` and `RandomSearch` selectors call `random.shuffle()` and `random.choice()`
+without a fixed seed. `SimulatedAnnealing` also relies on `random`. Two runs with identical
+inputs can therefore produce different selected primer pairs, which violates the reproducibility
+requirement for compliant clinical use and makes debugging non-deterministic.
+
+**Required change:**
+
+1. Add an optional `seed: int | None = None` parameter to `MultiplexSelector.__init__()` and
+   propagate it to each concrete selector's `run()` method. Before the first random call, execute
+   `random.seed(seed)` if a seed is provided.
+2. Add `selector_seed: int | None` to `MultiplexPickerParameters` in `config.py` (default `None`
+   — existing stochastic behaviour unchanged unless a seed is set).
+3. Expose `--selector-seed` on `plexus run` and thread it through `run_pipeline()` and
+   `run_multi_panel()`.
+4. Record the seed (or `null`) in `provenance.json` under a `selector_seed` key so that a run
+   can be reproduced exactly from the audit record alone.
+
+**Compliance note:** In compliance mode, consider whether the absence of a seed should be a
+warning or a hard error. A run without a fixed seed cannot be identically reproduced, which is
+relevant for regulatory documentation. At minimum, `provenance.json` should make the absence
+explicit (`"selector_seed": null`).
+
+**Tests to add:** `tests/test_selector.py` — assert that two `GreedySearch` runs with the same
+seed and input produce the same solution ordering; assert that two runs without a seed are
+not guaranteed to match.
+
+---
+
+### AUDT-02 · Include `primer3-py` in the compliance manifest
+
+**Severity: Important · Files: `src/plexus/data/compliance_manifest.json`, `src/plexus/utils/env.py`**
+
+The compliance manifest currently pins four system tools (`blastn`, `makeblastdb`,
+`blast_formatter`, `bcftools`). It says nothing about `primer3-py`, which is the core
+thermodynamic engine for all Tm, self-dimer, hairpin, and end-stability calculations.
+The nearest-neighbour parameters embedded in `primer3-py` can change between versions, meaning
+two otherwise identical runs on different `primer3-py` versions can produce different candidate
+primer sets. Because `primer3-py` is a Python package rather than a system binary, its version
+cannot be checked with a subprocess call — a different mechanism is required.
+
+**Required change:**
+
+1. Add a `python_packages` section alongside `tools` in `compliance_manifest.json`, initially
+   containing `primer3-py` with an `exact_version` and the expected PyPI package name.
+2. Extend `validate_environment()` to check Python package versions via
+   `importlib.metadata.version()` for each entry in `python_packages`. Use the same
+   structured verdict format (`"pass"` | `"fail"` | `"missing"` | `"unparseable"`).
+3. Surface the Python package verdicts in the `compliance_environment` block of
+   `provenance.json` alongside the tool verdicts.
+4. Bump the manifest `"version"` from `"1.0"` to `"1.1"`.
+
+**Tests to add:** `tests/test_env.py` — mock `importlib.metadata.version` to return a matching
+and a mismatching version; assert pass/fail verdicts and that `ComplianceError` is raised on
+mismatch.
+
+---
+
+### AUDT-03 · Record run success/failure status in `provenance.json`
+
+**Severity: Important · File: `src/plexus/pipeline.py`**
+
+`provenance.json` is written at the very start of `run_pipeline()`, before any pipeline work
+begins (line 288). If the pipeline fails partway through — BLAST crash, all junctions failing
+design, SNP check error — the provenance file still exists and appears valid to a later auditor.
+There is no field indicating whether the run completed successfully, what step it reached, or
+what errors occurred.
+
+`panel_summary.json` does record `steps_completed` and `errors`, but the compliance guide
+directs clinical users to inspect `provenance.json`. The two files tell inconsistent stories
+on a failed run.
+
+**Required change:**
+
+1. Write an initial `provenance.json` at startup as today, but with `"status": "started"` and
+   `"completed_at": null`.
+2. At the end of `run_pipeline()`, update (re-write) `provenance.json` with:
+   - `"status": "completed"` or `"status": "failed"`
+   - `"completed_at"`: ISO 8601 UTC timestamp
+   - `"steps_completed"`: list from `PipelineResult.steps_completed`
+   - `"errors"`: list from `PipelineResult.errors`
+3. Wrap the final write in a `try/finally` so it executes even if the pipeline raises an
+   unhandled exception, capturing `"status": "failed"` and the exception message.
+
+**Tests to add:** `tests/test_pipeline.py` — mock a mid-pipeline failure; assert that
+`provenance.json` exists and contains `"status": "failed"` with a non-null `completed_at`.
+
+---
+
 ## v1.1 — Enhanced Specificity Analysis
 
 v1.1 focuses on improving the scientific accuracy of the BLAST-based specificity check,
@@ -524,4 +649,8 @@ project.
 | EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
 | REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
 | SPLIT-01 | Automated Panel Splitting | Future | Future | |
+| REPR-01 | Chromosome naming check at `plexus run` time in compliance mode | v1.0 | Important | |
+| REPR-02 | Random seed for stochastic selectors | v1.0 | Important | |
+| AUDT-02 | Include `primer3-py` in compliance manifest | v1.0 | Important | |
+| AUDT-03 | Record run success/failure status in `provenance.json` | v1.0 | Important | |
 | TEST-01 | End-to-end integration test with real BLAST | v1.1 | Important | |

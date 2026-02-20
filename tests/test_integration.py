@@ -20,6 +20,7 @@ _BLAST_AVAILABLE = all(
     shutil.which(tool) is not None
     for tool in ("blastn", "makeblastdb", "blast_formatter")
 )
+_BCFTOOLS_AVAILABLE = shutil.which("bcftools") is not None
 
 pytestmark = pytest.mark.integration
 
@@ -42,6 +43,7 @@ def pipeline_result(fixture_csv, fixture_fasta, fixture_vcf, tmp_path_factory):
     return result
 
 
+@pytest.mark.skipif(not _BCFTOOLS_AVAILABLE, reason="bcftools not found on PATH")
 class TestFullPipeline:
     """Tests that share a single pipeline execution."""
 
@@ -131,7 +133,10 @@ class TestPipelineSkipSnpcheck:
         assert "snp_checked" not in result.steps_completed
 
 
-@pytest.mark.skipif(not _BLAST_AVAILABLE, reason="BLAST+ tools not found on PATH")
+@pytest.mark.skipif(
+    not _BLAST_AVAILABLE or not _BCFTOOLS_AVAILABLE,
+    reason="BLAST+ or bcftools not found on PATH",
+)
 class TestFullPipelineWithBlast:
     """Integration tests with BLAST specificity check enabled.
 
