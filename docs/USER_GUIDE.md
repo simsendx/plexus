@@ -322,8 +322,9 @@ results/
 ├── selected_multiplex.csv   # Optimized final selection
 ├── top_panels.csv           # Alternative solutions
 ├── panel_summary.json       # Metadata and provenance
+├── panel_qc.json            # Tm/GC quality stats, homopolymer flags, cross-reactivity matrix
 ├── off_targets.csv          # BLAST specificity results
-├── failed_junctions.csv    # Targets that failed design
+├── failed_junctions.csv     # Targets that failed design
 └── provenance.json          # Tool versions and parameters
 ```
 
@@ -540,7 +541,7 @@ For consistent execution (especially in clinical use cases), it is recommended t
 
 ```bash
 plexus docker \
-  --tag 0.5.0-strict \
+  --tag 1.0.0 \
   --input ./data/junctions.csv \
   --fasta ./data/hg38.fa \
   --output ./results/run_1
@@ -562,7 +563,7 @@ The `plexus docker` command uses a **Local-First** approach:
 # Example using a private registry and forcing a pull
 plexus docker \
   --registry my-internal-registry.com/plexus \
-  --tag 0.5.0-strict \
+  --tag 1.0.0 \
   --pull \
   --input junctions.csv ...
 ```
@@ -633,7 +634,7 @@ Comprehensive metadata and provenance:
     "total_candidate_pairs": 876,
     "optimization_algorithm": "Greedy",
     "provenance": {
-        "plexus_version": "0.5.0",
+        "plexus_version": "1.0.0",
         "primer3_version": "2.6.1",
         "run_timestamp": "2026-02-20T14:30:00Z",
         "operational_mode": "compliance",
@@ -644,9 +645,11 @@ Comprehensive metadata and provenance:
         "run_blast": true,
         "skip_snpcheck": false,
         "compliance_environment": {
-            "manifest_version": "1.0",
-            "blastn": {"expected": "2.17.0", "actual": "2.17.0", "verdict": "pass"},
-            "bcftools": {"expected": "1.23", "actual": "1.23", "verdict": "pass"}
+            "manifest_version": "1.1",
+            "blastn":     {"expected": "2.17.0", "actual": "2.17.0", "verdict": "pass"},
+            "bcftools":   {"expected": "1.23",   "actual": "1.23",   "verdict": "pass"},
+            "primer3-py": {"expected": "2.3.0",  "actual": "2.3.0",  "verdict": "pass"},
+            "pysam":      {"expected": "0.23.3", "actual": "0.23.3", "verdict": "pass"}
         }
     },
     "configuration": {...}
@@ -953,18 +956,22 @@ The file `src/plexus/data/compliance_manifest.json` is bundled immutably inside 
 
 ```json
 {
-  "version": "1.0",
-  "description": "Compliance manifest for Plexus. Exact tool versions required for clinical operation.",
+  "version": "1.1",
+  "description": "Compliance manifest for Plexus. Exact tool and package versions required for clinical operation.",
   "tools": {
     "blastn":          { "exact_version": "2.17.0", "version_regex": "(\\d+\\.\\d+\\.\\d+)" },
     "makeblastdb":     { "exact_version": "2.17.0", "version_regex": "(\\d+\\.\\d+\\.\\d+)" },
     "blast_formatter": { "exact_version": "2.17.0", "version_regex": "(\\d+\\.\\d+\\.\\d+)" },
     "bcftools":        { "exact_version": "1.23",   "version_regex": "(\\d+\\.\\d+)"        }
+  },
+  "python_packages": {
+    "primer3-py": { "exact_version": "2.3.0",  "import_name": "primer3" },
+    "pysam":      { "exact_version": "0.23.3", "import_name": "pysam"   }
   }
 }
 ```
 
-The manifest version (`"1.0"`) is **independent of the plexus version**. It increments only when the required tool set changes — not with every plexus release.
+The manifest version (`"1.1"`) is **independent of the plexus version**. It increments only when the required tool set changes — not with every plexus release.
 
 The Dockerfile's `ARG BLAST_VERSION` / `ARG BCFTOOLS_VERSION` must match the manifest's `exact_version` values. If you re-validate against a different tool version, update both.
 
@@ -992,16 +999,18 @@ In compliance mode, `provenance.json` includes a `compliance_environment` block:
 
 ```json
 {
-  "plexus_version": "0.5.0",
+  "plexus_version": "1.0.0",
   "operational_mode": "compliance",
   "fasta_sha256": "a1b2c3d4...",
   "snp_vcf_sha256": "e5f6g7h8...",
   "compliance_environment": {
-    "manifest_version": "1.0",
+    "manifest_version": "1.1",
     "blastn":          { "expected": "2.17.0", "actual": "2.17.0", "verdict": "pass" },
     "makeblastdb":     { "expected": "2.17.0", "actual": "2.17.0", "verdict": "pass" },
     "blast_formatter": { "expected": "2.17.0", "actual": "2.17.0", "verdict": "pass" },
-    "bcftools":        { "expected": "1.23",   "actual": "1.23",   "verdict": "pass" }
+    "bcftools":        { "expected": "1.23",   "actual": "1.23",   "verdict": "pass" },
+    "primer3-py":      { "expected": "2.3.0",  "actual": "2.3.0",  "verdict": "pass" },
+    "pysam":           { "expected": "0.23.3", "actual": "0.23.3", "verdict": "pass" }
   }
 }
 ```

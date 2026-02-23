@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0b1] - 24-02-2026
+## [1.0.0b2] - 24-02-2026
+
+### Changed
+
+- **Updated documentation**: Removed stale notebooks from `docs/` directory and created a new updated notebook (`docs/getting_started.ipynb`) for the user to get started with `plexus`. Updated `README.md` and other documentation files to reflect the current state of the project.
+
+## [1.0.0b1] - 23-02-2026
 
 ### Added
 
@@ -13,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cancelled). Full end-to-end integration tests, compliance infrastructure, audit trail, and
   panel QC reporting in place.
 
-## [0.5.8] - 24-02-2026
+## [0.5.8] - 23-02-2026
 
 ### Added
 
@@ -24,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `panel_summary.json` is written; wrapped in `try/except` so QC failures are non-fatal
   (logged as a warning). 16 unit tests in `tests/test_reporting_qc.py`.
 
-## [0.5.7] - 24-02-2026
+## [0.5.7] - 23-02-2026
 
 ### Changed
 

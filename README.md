@@ -4,22 +4,22 @@
 [![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue)](https://github.com/sfilges/plexus)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0)
 
-`plexus` is a Python-based bioinformatics tool designed to automate the creation of multiplex PCR panels. It specifically targets workflows like personalized ctDNA panels, integrating genomic data processing, primer design (via `primer3`), and specificity checking (via BLAST) to generate optimized primer sets for multiple targets simultaneously.
+`plexus` is a Python-based bioinformatics tool designed to automate the creation of multiplex PCR panels. It specifically targets workflows like personalised ctDNA panels, integrating genomic data processing, primer design (via `primer3`), and specificity checking (via BLAST) to generate optimised primer sets for multiple targets simultaneously.
 
 ## Features
 
-- **Automated Primer Design**: Uses a custom k-mer enumeration algorithm (`simsen`) to generate primer candidates for each junction; `primer3-py` is used for thermodynamic filtering (hairpin/self-dimer ΔG).
-- **SNP Checking**: Filters primer candidates that overlap common variants in gnomAD (or a user-supplied VCF). Supports strict mode (`--snp-strict`) to discard any SNP-overlapping pair.
-- **Multiplex Optimization**: Selects the optimal primer combination minimizing cross-dimer potential. Five algorithms available: Greedy (default), Random, BruteForce, SimulatedAnnealing, DFS.
+- **Automated Primer Design**: Uses a custom k-mer enumeration algorithm (`simsen`) to generate primer candidates for each junction; `primer3-py` is used for thermodynamic filtering (hairpin/self-dimer ΔG, 3′-end stability).
+- **SNP Checking**: Filters primer candidates that overlap common variants in gnomAD (or a user-supplied VCF). Supports strict mode (`--snp-strict`) to discard any SNP-overlapping pair. AF-based penalty scaling is configurable.
+- **Multiplex Optimisation**: Selects the optimal primer combination minimising cross-dimer potential. Five algorithms available: Greedy (default), Random, BruteForce, SimulatedAnnealing, DFS.
 - **Specificity Checking**: Integrates BLAST to check for off-target amplification and primer specificity.
-- **Multi-Panel Support**: Designs multiple independent panels from a single input CSV using a `Panel` column (e.g., for multiple patients).
+- **Multi-Panel Support**: Designs multiple independent panels from a single input CSV using a `Panel` column (e.g., for multiple patients). Use `--parallel` to run panels concurrently.
 - **Configuration Presets**: Includes `default` and `lenient` configuration presets for different design stringencies.
-- **CLI Interface**: Easy-to-use command line interface for running the design pipeline.
+- **CLI Interface**: Easy-to-use command line interface (`plexus run`, `plexus init`, `plexus status`, `plexus template`, `plexus docker`).
 - **Compliance / Clinical Mode**: Stateless container-ready operation — `PLEXUS_MODE=compliance` env var, bundled tool-version manifest, on-the-fly checksum verification (`--checksums`), and fail-fast environment validation before any data is touched.
 
 ## Limitations
 
-- **Panel Size**: `plexus` is specifically designed and optimized for small to medium-sized panels (typically <100 targets). While it can handle larger panels, the multiplex optimization step (especially with cross-dimer checks) may become computationally expensive as complexity grows $O(N^2)$.
+- **Panel Size**: `plexus` is specifically designed and optimised for small to medium-sized panels (typically <100 targets). While it can handle larger panels, the multiplex optimisation step (especially with cross-dimer checks) may become computationally expensive as complexity grows $O(N^2)$.
 
 ## Installation
 
@@ -78,7 +78,7 @@ KRAS_G12D,chr12,25245350,25245350
 ...
 ```
 
-See `data/junctions.csv` for a complete example.
+See `data/junctions.csv` for a complete example. Use `plexus template` to generate a starter file.
 
 ### Multi-Panel Input
 
@@ -93,15 +93,19 @@ TP53_R248W,chr17,7674220,7674220,panel_b
 
 Use `--parallel` to run panels concurrently.
 
-### SNP Checking
+### Initialising resources
 
-SNP checking requires a tabix-indexed VCF. You can download a bundled gnomAD VCF for a quick start:
+`plexus init` registers your local reference FASTA and SNP VCF (gnomAD) so you don't need to pass `--fasta` on every run. Without flags it launches an interactive wizard:
 
 ```bash
 plexus init
 ```
 
-> **Note**: `plexus init` is a convenience feature for quick starts. For production use, it is highly recommended that users provide their own verified VCF files, stored locally, and supply them via the `--snp-vcf` CLI argument.
+To run non-interactively:
+
+```bash
+plexus init --fasta /path/to/hg38.fa --snp-vcf /path/to/gnomad.vcf.gz
+```
 
 Check resource status at any time:
 
@@ -109,7 +113,7 @@ Check resource status at any time:
 plexus status
 ```
 
-To use a custom VCF (must be tabix-indexed):
+To use a custom VCF on a per-run basis (must be tabix-indexed):
 
 ```bash
 plexus run -i junctions.csv -f genome.fa --snp-vcf /path/to/custom.vcf.gz
@@ -122,16 +126,17 @@ Use `--snp-strict` to discard any primer pair that overlaps a SNP above the AF t
 | Option | Default | Description |
 | --- | --- | --- |
 | `-i, --input` | required | Path to input CSV file |
-| `-f, --fasta` | required | Path to reference genome FASTA |
+| `-f, --fasta` | registered genome | Path to reference genome FASTA |
 | `-o, --output` | `./output` | Output directory |
 | `-n, --name` | `multiplex_panel` | Panel name |
 | `-g, --genome` | `hg38` | Reference genome name |
 | `-p, --preset` | `default` | Config preset (`default` or `lenient`) |
 | `-c, --config` | — | Path to custom JSON config file |
 | `-s, --selector` | `Greedy` | Selector algorithm: `Greedy`, `Random`, `BruteForce`, `SimulatedAnnealing`, `DFS` |
+| `--selector-seed` | — | Random seed for stochastic selectors |
 | `--skip-blast` | false | Skip BLAST specificity check |
 | `--skip-snpcheck` | false | Skip SNP overlap check |
-| `--snp-vcf` | bundled gnomAD | Path to tabix-indexed VCF for SNP checking |
+| `--snp-vcf` | registered gnomAD | Path to tabix-indexed VCF for SNP checking |
 | `--snp-af-threshold` | `0.01` | Minimum allele frequency for SNP flagging |
 | `--snp-strict` | false | Discard primer pairs overlapping SNPs |
 | `--strict` | false | Verify checksums via registry before running |
@@ -139,35 +144,63 @@ Use `--snp-strict` to discard any primer pair that overlaps a SNP above the AF t
 | `--padding` | `200` | Bases to extract around each junction |
 | `--parallel` | false | Run multiple panels in parallel |
 | `--max-workers` | auto | Max parallel workers (multi-panel mode) |
+| `--debug` | false | Write DEBUG-level messages to the log file |
 
 Run `plexus --help` for a full list of commands and options.
 
+### Generating starter files
+
+```bash
+plexus template --output ./my_project/
+```
+
+Creates `junctions.csv` (with example targets) and `designer_config.json` (full config with all defaults) in the specified directory.
+
 ## Compliance Mode and Container Deployment
 
-Plexus has a built-in compliance mode designed for containerized clinical or regulated environments where no persistent `~/.plexus/` workspace exists.
+Plexus has a built-in compliance mode designed for containerised clinical or regulated environments where no persistent `~/.plexus/` workspace exists.
 
 ### Operational Mode Priority
 
 | Priority | Source | How to set |
-|----------|--------|------------|
+| ---------- | -------- | ------------ |
 | 1 (highest) | `PLEXUS_MODE` env var | `export PLEXUS_MODE=compliance` or bake into Docker image |
 | 2 | `~/.plexus/config.json` | `plexus init --mode compliance` |
 | 3 (default) | built-in default | `research` |
 
 ### Stateless Container Workflow
 
-```bash
-# Build image with exact tool versions pinned (see docker/DOCKERFILE)
-docker build -f docker/DOCKERFILE -t plexus:latest .
+The `plexus docker` command is a convenience wrapper that handles volume mounts and path translation automatically:
 
-# Run — no ~/.plexus/ needed
+```bash
+plexus docker \
+  --fasta /data/hg38.fa \
+  --snp-vcf /data/gnomad.vcf.gz \
+  --checksums /data/checksums.sha256 \
+  --input /data/junctions.csv \
+  --output /data/results/
+```
+
+To run a specific tagged version or pass through extra `plexus run` flags:
+
+```bash
+plexus docker --tag 1.0.0b2 \
+  --fasta /data/hg38.fa \
+  --input /data/junctions.csv \
+  --output /data/results/ \
+  --skip-blast
+```
+
+To run the Docker image directly (without the `plexus docker` wrapper):
+
+```bash
 docker run \
   -v /data/hg38.fa:/mnt/hg38.fa \
   -v /data/gnomad.vcf.gz:/mnt/gnomad.vcf.gz \
   -v /data/checksums.sha256:/mnt/checksums.sha256 \
   -v /data/junctions.csv:/mnt/junctions.csv \
   -v /data/output:/mnt/output \
-  plexus:latest \
+  ghcr.io/sfilges/plexus:latest \
   run \
     --input /mnt/junctions.csv \
     --fasta /mnt/hg38.fa \
@@ -177,6 +210,7 @@ docker run \
 ```
 
 What happens at runtime:
+
 1. `PLEXUS_MODE=compliance` (baked into image) — no registry consulted
 2. CLI verifies FASTA + VCF against `checksums.sha256` before the pipeline starts
 3. `run_pipeline()` calls `validate_environment()` — exact tool versions checked against the bundled compliance manifest — fails in <1 s if versions don't match
@@ -194,12 +228,16 @@ The file `src/plexus/data/compliance_manifest.json` (bundled in the package, imm
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "tools": {
     "blastn":         { "exact_version": "2.17.0", ... },
     "makeblastdb":    { "exact_version": "2.17.0", ... },
     "blast_formatter":{ "exact_version": "2.17.0", ... },
     "bcftools":       { "exact_version": "1.23",   ... }
+  },
+  "python_packages": {
+    "primer3-py":     { "exact_version": "2.3.0",  ... },
+    "pysam":          { "exact_version": "0.23.3", ... }
   }
 }
 ```
@@ -213,14 +251,16 @@ In compliance mode, `provenance.json` includes a `compliance_environment` block:
   "operational_mode": "compliance",
   "fasta_sha256": "a1b2c3...",
   "compliance_environment": {
-    "manifest_version": "1.0",
-    "blastn":    { "expected": "2.17.0", "actual": "2.17.0", "verdict": "pass" },
-    "bcftools":  { "expected": "1.23",   "actual": "1.23",   "verdict": "pass" }
+    "manifest_version": "1.1",
+    "blastn":      { "expected": "2.17.0", "actual": "2.17.0", "verdict": "pass" },
+    "bcftools":    { "expected": "1.23",   "actual": "1.23",   "verdict": "pass" },
+    "primer3-py":  { "expected": "2.3.0",  "actual": "2.3.0",  "verdict": "pass" },
+    "pysam":       { "expected": "0.23.3", "actual": "0.23.3", "verdict": "pass" }
   }
 }
 ```
 
-See `docs/USER_GUIDE.md` for the full compliance workflow including local (registry-based) and stateless (container) paths.
+See `docs/COMPLIANCE_GUIDE.md` for the full compliance workflow including local (registry-based) and stateless (container) paths.
 
 ## Configuration
 
@@ -234,11 +274,11 @@ The config is divided into five sections:
 
 | Section | Controls |
 | --- | --- |
-| `singleplex_design_parameters` | Primer length, Tm, GC%, thermodynamic thresholds, adapter tails |
+| `singleplex_design_parameters` | Primer length (18–28 bp), Tm (57–63 °C), GC%, thermodynamic thresholds, adapter tail sequences |
 | `primer_pair_parameters` | Amplicon size, Tm difference, pair penalty weights |
 | `pcr_conditions` | Salt concentrations, annealing temperature, thermodynamic tables |
-| `snp_check_parameters` | AF threshold, SNP penalty weight, strict mode |
-| `multiplex_picker_parameters` | Optimization weights and selector settings. Note: `target_plexity`, `minimum_plexity`, and `maximum_plexity` are reserved for a future panel-splitting feature — currently all junctions with valid primer pairs are always included. |
+| `snp_check_parameters` | AF threshold, SNP penalty weight, 3′-window multiplier, strict mode |
+| `multiplex_picker_parameters` | Optimisation weights (cross-dimer, off-target, SNP penalty), selector settings |
 
 ### Minimal override example
 
@@ -281,4 +321,23 @@ The full ready-to-order sequences (`tail + binding region`) are written to the `
 
 ### Viewing all available parameters
 
-The built-in preset files in `config/` list every available parameter with its default value and are a useful reference when building a custom config.
+Run `plexus template` to generate a `designer_config.json` containing every parameter with its default value — a useful reference when building a custom config.
+
+## Python API
+
+For programmatic use, import `run_pipeline` directly:
+
+```python
+from plexus.pipeline import run_pipeline
+
+result = run_pipeline(
+    "data/junctions.csv",
+    "/path/to/hg38.fa",
+    output_dir="./output",
+    panel_name="my_panel",
+)
+
+print(f"Selected {len(result.selected_pairs)} primer pairs")
+```
+
+See `docs/getting_started.ipynb` for a full walkthrough including panel inspection, primer pair exploration, and output file descriptions.

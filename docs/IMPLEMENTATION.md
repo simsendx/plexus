@@ -172,8 +172,9 @@ operation. Currently covers:
 | `bcftools` | 1.23 |
 
 `validate_environment()` in `utils/env.py` checks installed tool versions against the manifest
-using regex extraction and raises `ComplianceError` on any mismatch or missing tool. A
-`python_packages` section for `primer3-py` is a planned addition (ROADMAP AUDT-02).
+using regex extraction and raises `ComplianceError` on any mismatch or missing tool. The manifest
+also includes a `python_packages` section (AUDT-02) that pins `primer3-py` and `pysam` versions,
+which are verified via `importlib.metadata` at runtime.
 
 ### Provenance (`provenance.json`)
 
@@ -358,7 +359,7 @@ and translates host paths to container paths. Pulls the image from
 
 ```bash
 plexus docker \
-    --tag 0.5.0 \
+    --tag 1.0.0 \
     --fasta /data/hg38.fa \
     --snp-vcf /data/gnomad.vcf.gz \
     --checksums /data/checksums.sha256 \
