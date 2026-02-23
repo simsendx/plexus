@@ -284,15 +284,21 @@ This ensures users are notified of naming conflicts before starting a production
 
 ---
 
-### TEST-01 · End-to-end integration test with real BLAST
+### ~~TEST-01 · End-to-end integration test with real BLAST~~ ✅ Implemented in v0.4.0
 
 **File: `tests/test_integration.py`**
 
-All existing integration tests mock BLAST, the annotator, and the AmpliconFinder. Add at least
+~~All existing integration tests mock BLAST, the annotator, and the AmpliconFinder. Add at least
 one end-to-end test that exercises the full pipeline against the fixture BLAST database in
 `tests/data/` without mocking, using the synthetic FASTA already present in `conftest.py`. This
 would catch regressions in the BLAST runner, annotator annotation logic (including BUG-01 above),
-and AmpliconFinder pairing logic together.
+and AmpliconFinder pairing logic together.~~
+
+**Implementation:** `TestFullPipelineWithBlast` in `tests/test_integration.py` runs the full
+pipeline against `tests/data/fixtures.ndb` without mocking BLAST, the annotator, or
+`AmpliconFinder`. Tests are conditionally skipped when BLAST+ tools are absent from `PATH`. Four
+tests cover: BLAST step completion, per-pair `specificity_checked` flag, BLAST output file
+creation, and off-target product list population on selected pairs.
 
 ---
 
@@ -722,4 +728,4 @@ project.
 | EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
 | REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
 | SPLIT-01 | Automated Panel Splitting | Future | Future | |
-| TEST-01 | End-to-end integration test with real BLAST | v1.1 | Important | |
+| ~~TEST-01~~ | ~~End-to-end integration test with real BLAST~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.0 |

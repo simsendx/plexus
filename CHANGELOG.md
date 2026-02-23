@@ -1,3 +1,21 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.5.8] - 24-02-2026
+
+### Added
+
+- **REPT-01 · Panel QC Report**: New `src/plexus/reporting/qc.py` generates `panel_qc.json` in
+  the output directory containing Tm distribution statistics (mean, std, min, max, per-primer),
+  sequence quality flags (GC content >70%/<30%, homopolymers ≥4 bp), and a cross-reactivity
+  matrix showing junction-pair dimer interactions. Called from `run_pipeline()` after
+  `panel_summary.json` is written; wrapped in `try/except` so QC failures are non-fatal
+  (logged as a warning). 16 unit tests in `tests/test_reporting_qc.py`.
+
 ## [0.5.7] - 24-02-2026
 
 ### Changed

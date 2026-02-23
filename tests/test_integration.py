@@ -107,6 +107,7 @@ class TestFullPipeline:
             "selected_multiplex.csv",
             "top_panels.csv",
             "panel_summary.json",
+            "panel_qc.json",
         ]
         for filename in expected:
             path = out / filename
