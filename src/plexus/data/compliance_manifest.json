@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "description": "Compliance manifest for Plexus. Exact tool versions required for clinical operation.",
+  "version": "1.1",
+  "description": "Compliance manifest for Plexus. Exact tool and package versions required for clinical operation.",
   "tools": {
     "blastn": {
       "exact_version": "2.17.0",
@@ -17,6 +17,12 @@
     "bcftools": {
       "exact_version": "1.23",
       "version_regex": "(\\d+\\.\\d+)"
+    }
+  },
+  "python_packages": {
+    "primer3-py": {
+      "exact_version": "2.3.0",
+      "import_name": "primer3"
     }
   }
 }

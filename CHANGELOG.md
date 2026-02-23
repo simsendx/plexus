@@ -1,3 +1,21 @@
+## [0.5.5] - 23-02-2026
+
+### Added
+
+- **AUDT-02 · Include `primer3-py` in compliance manifest**: The compliance manifest now pins
+  Python packages alongside system tools. `primer3-py` is pinned at `2.3.0` in a new
+  `python_packages` section. `validate_environment()` checks installed Python package versions
+  via `importlib.metadata.version()` and produces the same structured verdicts (`"pass"` |
+  `"fail"` | `"missing"`) as system tools. Python package verdicts are surfaced in the
+  `compliance_environment` block of `provenance.json`. Manifest version bumped from `"1.0"` to
+  `"1.1"`. Four new tests in `tests/test_env.py`.
+- **REPR-01 · Chromosome naming check at `plexus run` time**: `run_pipeline()` now calls
+  `detect_chrom_naming_mismatch()` before writing provenance whenever SNP checking is enabled
+  and a VCF path is supplied. In compliance mode a mismatch raises `ValueError` and aborts
+  before any pipeline work begins (provenance is not written). In research mode a warning is
+  logged and the run continues. The outcome is recorded in `provenance.json` as
+  `"chrom_naming_check": "pass" | "mismatch" | "skipped" | "unavailable"`.
+
 ## [0.5.4] - 23-02-2026
 
 ### Fixed

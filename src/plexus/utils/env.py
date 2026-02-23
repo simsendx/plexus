@@ -108,12 +108,13 @@ def load_compliance_manifest() -> dict:
 
 
 def validate_environment(need_blast: bool = False, need_snp: bool = False) -> dict:
-    """Check tool versions against the compliance manifest.
+    """Check tool and Python package versions against the compliance manifest.
 
     Returns a structured verdict dict (for provenance). Raises
-    ``ComplianceError`` if any required tool is missing or the wrong version.
+    ``ComplianceError`` if any required tool/package is missing or the wrong
+    version.
 
-    Verdict values per tool: ``"pass"`` | ``"fail"`` | ``"missing"`` | ``"unparseable"``
+    Verdict values: ``"pass"`` | ``"fail"`` | ``"missing"`` | ``"unparseable"``
     """
     import re
 
@@ -129,6 +130,7 @@ def validate_environment(need_blast: bool = False, need_snp: bool = False) -> di
     verdicts: dict[str, dict] = {}
     failures: list[str] = []
 
+    # ── System tools ─────────────────────────────────────────────────────
     for tool_name in tools_to_check:
         if tool_name not in tools_spec:
             continue
@@ -174,11 +176,42 @@ def validate_environment(need_blast: bool = False, need_snp: bool = False) -> di
                         f"  - {tool_name}: expected exactly {expected}, found {actual!r}"
                     )
 
+    # ── Python packages ──────────────────────────────────────────────────
+    pkg_spec = manifest.get("python_packages", {})
+    for pkg_name, spec in pkg_spec.items():
+        expected = spec["exact_version"]
+        try:
+            actual = importlib.metadata.version(pkg_name)
+        except importlib.metadata.PackageNotFoundError:
+            verdicts[pkg_name] = {
+                "expected": expected,
+                "actual": None,
+                "verdict": "missing",
+            }
+            failures.append(f"  - {pkg_name}: package not installed")
+            continue
+
+        if actual == expected:
+            verdicts[pkg_name] = {
+                "expected": expected,
+                "actual": actual,
+                "verdict": "pass",
+            }
+        else:
+            verdicts[pkg_name] = {
+                "expected": expected,
+                "actual": actual,
+                "verdict": "fail",
+            }
+            failures.append(
+                f"  - {pkg_name}: expected exactly {expected}, found {actual!r}"
+            )
+
     if failures:
         n = len(failures)
         msg = (
-            f"Environment validation failed — {n} tool(s) do not match the compliance manifest:\n"
-            + "\n".join(failures)
+            f"Environment validation failed — {n} tool(s)/package(s) do not match "
+            f"the compliance manifest:\n" + "\n".join(failures)
         )
         raise ComplianceError(msg)
 

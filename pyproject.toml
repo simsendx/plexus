@@ -22,7 +22,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "biopython",
     "loguru",
     "pandas",
     "primer3-py",

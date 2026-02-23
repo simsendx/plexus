@@ -121,6 +121,7 @@ def _collect_provenance(
     snp_vcf_sha256: str | None = None,
     compliance_report: dict | None = None,
     selector_seed: int | None = None,
+    chrom_naming_check: str = "skipped",
 ) -> dict:
     """Collect tool versions, resource paths, and checksums for provenance."""
     import datetime
@@ -160,6 +161,7 @@ def _collect_provenance(
         "run_blast": run_blast,
         "skip_snpcheck": skip_snpcheck,
         "selector_seed": selector_seed,
+        "chrom_naming_check": chrom_naming_check,
         "status": "started",
         "completed_at": None,
     }
@@ -287,6 +289,38 @@ def run_pipeline(
     if selector_seed is not None:
         config.multiplex_picker_parameters.selector_seed = selector_seed
 
+    # ── Chromosome naming consistency check ──────────────────────────────────
+    chrom_naming_check = "skipped"
+    if not skip_snpcheck and snp_vcf is not None:
+        from plexus.utils.utils import (
+            detect_chrom_naming_mismatch,
+            get_fasta_contigs,
+            get_vcf_contigs,
+        )
+
+        try:
+            fasta_contigs = get_fasta_contigs(fasta_file)
+            vcf_contigs = get_vcf_contigs(Path(snp_vcf))
+            mismatch = detect_chrom_naming_mismatch(fasta_contigs, vcf_contigs)
+            if mismatch:
+                chrom_naming_check = "mismatch"
+                logger.warning(
+                    f"Chromosome naming mismatch between FASTA and VCF: {mismatch}"
+                )
+                if op_mode == "compliance":
+                    raise ValueError(
+                        f"Chromosome naming mismatch detected: {mismatch} "
+                        "Ensure FASTA and VCF use the same chromosome naming convention "
+                        "(e.g., both 'chr1' or both '1'). Aborting in compliance mode."
+                    )
+            else:
+                chrom_naming_check = "pass"
+        except ValueError:
+            raise  # re-raise the compliance ValueError above
+        except Exception as e:
+            chrom_naming_check = "unavailable"
+            logger.warning(f"Could not verify chromosome naming consistency: {e}")
+
     # ── Write provenance record ──────────────────────────────────────────────
     provenance = _collect_provenance(
         fasta_file=fasta_file,
@@ -298,6 +332,7 @@ def run_pipeline(
         snp_vcf_sha256=snp_vcf_sha256,
         compliance_report=compliance_report,
         selector_seed=config.multiplex_picker_parameters.selector_seed,
+        chrom_naming_check=chrom_naming_check,
     )
     import json as _json
 

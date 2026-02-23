@@ -304,7 +304,7 @@ and AmpliconFinder pairing logic together.
 
 ---
 
-### REPR-01 · Chromosome naming check at `plexus run` time in compliance mode
+### ~~REPR-01~~ · ~~Chromosome naming check at `plexus run` time in compliance mode~~ ✅ Fixed in v0.5.4
 
 **Severity: Important · Files: `src/plexus/pipeline.py`, `src/plexus/utils/utils.py`**
 
@@ -369,32 +369,20 @@ not guaranteed to match.
 
 ---
 
-### AUDT-02 · Include `primer3-py` in the compliance manifest
+### ~~AUDT-02 · Include `primer3-py` in the compliance manifest~~ ✅ Fixed in v0.5.5
 
 **Severity: Important · Files: `src/plexus/data/compliance_manifest.json`, `src/plexus/utils/env.py`**
 
-The compliance manifest currently pins four system tools (`blastn`, `makeblastdb`,
-`blast_formatter`, `bcftools`). It says nothing about `primer3-py`, which is the core
-thermodynamic engine for all Tm, self-dimer, hairpin, and end-stability calculations.
-The nearest-neighbour parameters embedded in `primer3-py` can change between versions, meaning
-two otherwise identical runs on different `primer3-py` versions can produce different candidate
-primer sets. Because `primer3-py` is a Python package rather than a system binary, its version
-cannot be checked with a subprocess call — a different mechanism is required.
+The compliance manifest previously pinned only four system tools (`blastn`, `makeblastdb`,
+`blast_formatter`, `bcftools`) and said nothing about `primer3-py`, the core thermodynamic
+engine for all Tm, self-dimer, hairpin, and end-stability calculations.
 
-**Required change:**
-
-1. Add a `python_packages` section alongside `tools` in `compliance_manifest.json`, initially
-   containing `primer3-py` with an `exact_version` and the expected PyPI package name.
-2. Extend `validate_environment()` to check Python package versions via
-   `importlib.metadata.version()` for each entry in `python_packages`. Use the same
-   structured verdict format (`"pass"` | `"fail"` | `"missing"` | `"unparseable"`).
-3. Surface the Python package verdicts in the `compliance_environment` block of
-   `provenance.json` alongside the tool verdicts.
-4. Bump the manifest `"version"` from `"1.0"` to `"1.1"`.
-
-**Tests to add:** `tests/test_env.py` — mock `importlib.metadata.version` to return a matching
-and a mismatching version; assert pass/fail verdicts and that `ComplianceError` is raised on
-mismatch.
+**Fix:** Added a `python_packages` section to `compliance_manifest.json` with `primer3-py`
+pinned at `2.3.0`. Extended `validate_environment()` to check Python package versions via
+`importlib.metadata.version()` using the same structured verdict format (`"pass"` | `"fail"` |
+`"missing"`). Python package verdicts are surfaced in the `compliance_environment` block of
+`provenance.json` alongside the tool verdicts. Manifest version bumped from `"1.0"` to `"1.1"`.
+Four new tests added to `tests/test_env.py`.
 
 ---
 
@@ -732,9 +720,9 @@ project.
 | EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
 | REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
 | SPLIT-01 | Automated Panel Splitting | Future | Future | |
-| REPR-01 | Chromosome naming check at `plexus run` time in compliance mode | v1.0 | Important | |
+| ~~REPR-01~~ | ~~Chromosome naming check at `plexus run` time in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
 | ~~REPR-02~~ | ~~Random seed for stochastic selectors~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.2 |
-| AUDT-02 | Include `primer3-py` in compliance manifest | v1.0 | Important | |
+| ~~AUDT-02~~ | ~~Include `primer3-py` in compliance manifest~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.5 |
 | ~~AUDT-03~~ | ~~Record run success/failure status in `provenance.json`~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
 | SCI-01 | Weight SNP penalties by allele frequency | v1.0 | Important | |
 | ~~ARCH-04~~ | ~~Remove genome download functionality~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.1 |

@@ -113,3 +113,96 @@ def test_provenance_steps_completed_recorded(fixture_fasta, fixture_csv, tmp_pat
     prov = json.loads((out / "provenance.json").read_text())
     assert "primers_designed" in prov["steps_completed"]
     assert "multiplex_optimized" in prov["steps_completed"]
+
+
+# ── REPR-01 tests ─────────────────────────────────────────────────────────────
+
+
+def test_chrom_naming_check_skipped_recorded(fixture_fasta, fixture_csv, tmp_path):
+    """chrom_naming_check=skipped when skip_snpcheck=True."""
+    out = tmp_path / "output"
+    run_pipeline(
+        input_file=fixture_csv,
+        fasta_file=fixture_fasta,
+        output_dir=out,
+        run_blast=False,
+        skip_snpcheck=True,
+    )
+    prov = json.loads((out / "provenance.json").read_text())
+    assert prov["chrom_naming_check"] == "skipped"
+
+
+def test_chrom_naming_mismatch_raises_in_compliance(
+    fixture_fasta, fixture_csv, fixture_vcf, tmp_path
+):
+    """Compliance mode + mismatch → ValueError before any pipeline work."""
+    out = tmp_path / "output"
+    with (
+        patch("plexus.resources.get_operational_mode", return_value="compliance"),
+        patch("plexus.utils.env.validate_environment", return_value={}),
+        patch("plexus.pipeline.get_missing_tools", return_value=[]),
+        patch("plexus.utils.utils.get_fasta_contigs", return_value={"chr1", "chr2"}),
+        patch("plexus.utils.utils.get_vcf_contigs", return_value={"1", "2"}),
+    ):
+        with pytest.raises(ValueError, match="[Cc]hromosome naming mismatch"):
+            run_pipeline(
+                input_file=fixture_csv,
+                fasta_file=fixture_fasta,
+                output_dir=out,
+                snp_vcf=str(fixture_vcf),
+                run_blast=False,
+                skip_snpcheck=False,
+            )
+    # provenance should NOT exist — pipeline aborted before the write
+    assert not (out / "provenance.json").exists()
+
+
+def test_chrom_naming_mismatch_warns_in_research(
+    fixture_fasta, fixture_csv, fixture_vcf, tmp_path
+):
+    """Research mode + mismatch → warning, pipeline continues, provenance records 'mismatch'."""
+    out = tmp_path / "output"
+    with (
+        patch("plexus.resources.get_operational_mode", return_value="research"),
+        patch("plexus.pipeline.get_missing_tools", return_value=[]),
+        patch("plexus.utils.utils.get_fasta_contigs", return_value={"chr1", "chr2"}),
+        patch("plexus.utils.utils.get_vcf_contigs", return_value={"1", "2"}),
+        patch("plexus.snpcheck.snp_data.get_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.snpcheck.checker.run_snp_check"),
+    ):
+        run_pipeline(
+            input_file=fixture_csv,
+            fasta_file=fixture_fasta,
+            output_dir=out,
+            snp_vcf=str(fixture_vcf),
+            run_blast=False,
+            skip_snpcheck=False,
+        )
+    prov = json.loads((out / "provenance.json").read_text())
+    assert prov["chrom_naming_check"] == "mismatch"
+    assert prov["status"] == "completed"
+
+
+def test_chrom_naming_check_pass_recorded(
+    fixture_fasta, fixture_csv, fixture_vcf, tmp_path
+):
+    """When contigs match, chrom_naming_check=pass is recorded in provenance."""
+    out = tmp_path / "output"
+    matching = {"chr1", "chr2", "chr3"}
+    with (
+        patch("plexus.pipeline.get_missing_tools", return_value=[]),
+        patch("plexus.utils.utils.get_fasta_contigs", return_value=matching),
+        patch("plexus.utils.utils.get_vcf_contigs", return_value=matching),
+        patch("plexus.snpcheck.snp_data.get_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.snpcheck.checker.run_snp_check"),
+    ):
+        run_pipeline(
+            input_file=fixture_csv,
+            fasta_file=fixture_fasta,
+            output_dir=out,
+            snp_vcf=str(fixture_vcf),
+            run_blast=False,
+            skip_snpcheck=False,
+        )
+    prov = json.loads((out / "provenance.json").read_text())
+    assert prov["chrom_naming_check"] == "pass"

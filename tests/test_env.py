@@ -177,3 +177,63 @@ class TestComplianceManifest:
             validate_environment(need_blast=True)
 
         assert "blastn: not found on PATH" in str(excinfo.value)
+
+    def test_manifest_has_python_packages(self):
+        """Manifest includes a python_packages section with primer3-py."""
+        from plexus.utils.env import load_compliance_manifest
+
+        manifest = load_compliance_manifest()
+        assert "python_packages" in manifest
+        assert "primer3-py" in manifest["python_packages"]
+        assert "exact_version" in manifest["python_packages"]["primer3-py"]
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_validate_environment_python_pkg_pass(self, mock_meta_ver, mock_ver):
+        """Pass verdict when primer3-py version matches manifest."""
+        from plexus.utils.env import load_compliance_manifest, validate_environment
+
+        manifest = load_compliance_manifest()
+        expected = manifest["python_packages"]["primer3-py"]["exact_version"]
+
+        # No system tools requested, so mock_ver won't be called
+        mock_meta_ver.return_value = expected
+
+        verdict = validate_environment(need_blast=False, need_snp=False)
+        assert verdict["primer3-py"]["verdict"] == "pass"
+        assert verdict["primer3-py"]["actual"] == expected
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_validate_environment_python_pkg_fail(self, mock_meta_ver, mock_ver):
+        """ComplianceError raised when primer3-py version mismatches."""
+        from plexus.utils.env import ComplianceError, validate_environment
+
+        mock_meta_ver.return_value = "0.0.0"
+
+        import pytest
+
+        with pytest.raises(ComplianceError) as excinfo:
+            validate_environment(need_blast=False, need_snp=False)
+
+        assert "primer3-py: expected exactly" in str(excinfo.value)
+        assert "0.0.0" in str(excinfo.value)
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_validate_environment_python_pkg_missing(self, mock_meta_ver, mock_ver):
+        """ComplianceError raised when primer3-py is not installed."""
+        import importlib.metadata
+
+        from plexus.utils.env import ComplianceError, validate_environment
+
+        mock_meta_ver.side_effect = importlib.metadata.PackageNotFoundError(
+            "primer3-py"
+        )
+
+        import pytest
+
+        with pytest.raises(ComplianceError) as excinfo:
+            validate_environment(need_blast=False, need_snp=False)
+
+        assert "primer3-py: package not installed" in str(excinfo.value)
