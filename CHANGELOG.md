@@ -1,3 +1,9 @@
+## [0.5.7] - 24-02-2026
+
+### Changed
+
+- **Remove per-junction parallel processing**: Removed `parallel` argument from `design_primers()` and `design_multiplex_primers()`. The parallel processing of thermodynamic calculations per junction was removed. This simplifies the design pipeline and removes the overhead of parallel execution for this step.
+
 ## [0.5.6] - 23-02-2026
 
 ### Added

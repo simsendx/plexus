@@ -12,7 +12,6 @@ from plexus.designer.multiplexpanel import (
 )
 from plexus.designer.thal import (
     calculate_single_primer_thermodynamics,
-    calculate_single_primer_thermodynamics_parallel,
 )
 from plexus.utils.utils import generate_kmers, reverse_complement
 
@@ -21,22 +20,19 @@ from plexus.utils.utils import generate_kmers, reverse_complement
 # ================================================================================
 
 
-def design_primers(
-    panel: MultiplexPanel, method: str = "simsen", parallel: bool = False
-) -> MultiplexPanel:
+def design_primers(panel: MultiplexPanel, method: str = "simsen") -> MultiplexPanel:
     """
     Wrapper function to call the design algorithm.
 
     Args:
         panel: An instantiated MultiplexPanel object created with panel_factory.
         method: Design algorithm to use; defaults to "simsen".
-        parallel: Boolean. If true, uses parallelized functions. Default is False.
 
     Returns:
         A MultiplexPanel object with primer designs.
     """
     if method == "simsen":
-        return design_multiplex_primers(panel, parallel=parallel)
+        return design_multiplex_primers(panel)
     raise ValueError(f"Unknown design method: {method}")
 
 
@@ -45,9 +41,7 @@ def design_primers(
 # ================================================================================
 
 
-def design_multiplex_primers(
-    panel: MultiplexPanel, parallel: bool = False
-) -> MultiplexPanel:
+def design_multiplex_primers(panel: MultiplexPanel) -> MultiplexPanel:
     """
     A function that picks individual primers left and right of the provided junctions.
 
@@ -165,28 +159,12 @@ def design_multiplex_primers(
                 warnings.warn(msg, stacklevel=2)
 
             # Calculate thermodynamic properties of candidate primers and remove low quality primers based on config.
-            if parallel:
-                # Run both left and right primers at the same time
-                (
-                    (left_primers, left_eval_string),
-                    (
-                        right_primers,
-                        right_eval_string,
-                    ),
-                ) = calculate_single_primer_thermodynamics_parallel(
-                    left_kmers=left_kmers,
-                    right_kmers=right_kmers,
-                    config=panel.config,
-                )
-            else:
-                left_primers, left_eval_string = calculate_single_primer_thermodynamics(
-                    left_kmers, panel.config, orientation="left"
-                )
-                right_primers, right_eval_string = (
-                    calculate_single_primer_thermodynamics(
-                        right_kmers, panel.config, orientation="right"
-                    )
-                )
+            left_primers, left_eval_string = calculate_single_primer_thermodynamics(
+                left_kmers, panel.config, orientation="left"
+            )
+            right_primers, right_eval_string = calculate_single_primer_thermodynamics(
+                right_kmers, panel.config, orientation="right"
+            )
 
             primer_table = [left_primers, right_primers]
 

@@ -615,6 +615,9 @@ evaluation would halve thermodynamic calculation time.
 **Fix:** Expose `parallel` as a pipeline/CLI option (`--parallel-design`), default to `True`
 when more than N junctions are present, or always default to `True` on multi-core systems.
 
+**Note:** The per junction parallel processing of left and right primers has been removed in v0.5.7.
+However, parallel processing across junctions might still be worth implementing.
+
 ---
 
 ### PERF-02 · Selector scalability: pre-filter candidates before optimisation

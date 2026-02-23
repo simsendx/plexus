@@ -9,8 +9,6 @@
 # ================================================================================
 
 import math
-import multiprocessing
-from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 
 import primer3
@@ -752,22 +750,3 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
     logger.info(eval_string)
 
     return (good_primers, eval_string)
-
-
-def calculate_single_primer_thermodynamics_parallel(left_kmers, right_kmers, config):
-    """
-    Multithreaded version of 'calculate_single_primer_thermodynamics'.
-    """
-    # Use ProcessPoolExecutor for CPU-bound tasks
-    with ProcessPoolExecutor(
-        max_workers=max(2, multiprocessing.cpu_count() - 2)
-    ) as executor:
-        # Submit both tasks
-        left_future = executor.submit(
-            calculate_single_primer_thermodynamics, left_kmers, config, "left"
-        )
-        right_future = executor.submit(
-            calculate_single_primer_thermodynamics, right_kmers, config, "right"
-        )
-
-        return left_future.result(), right_future.result()
