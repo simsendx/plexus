@@ -616,6 +616,20 @@ def run_pipeline(
                 provenance=provenance,
             )
 
+            # Panel QC report (REPT-01)
+            if result.selected_pairs:
+                try:
+                    from plexus.reporting.qc import generate_panel_qc
+
+                    qc_data = generate_panel_qc(panel.junctions)
+                    qc_path = output_dir / "panel_qc.json"
+                    with qc_path.open("w") as f:
+                        _json.dump(qc_data, f, indent=2)
+                    logger.info(f"Wrote panel QC report to {qc_path.name}")
+                except Exception as e:
+                    logger.warning(f"Could not write panel QC report: {e}")
+                    result.errors.append(f"Panel QC report failed: {e}")
+
             # Failed junctions report
             if result.failed_junctions:
                 import pandas as pd

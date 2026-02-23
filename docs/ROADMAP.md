@@ -104,33 +104,20 @@ can still be passed to `BlastRunner.run()` if needed.
 
 ---
 
-### FEAT-02 · Cross-target amplicon classification
+### ~~FEAT-02 · Cross-target amplicon classification~~ ✅ Cancelled
 
 **Severity: Important · Files: `src/plexus/blast/offtarget_finder.py`, `specificity.py`**
 
-Currently every amplicon that does not match the intended junction coordinates of a given pair is
+~~Currently every amplicon that does not match the intended junction coordinates of a given pair is
 counted as an off-target product. This includes amplicons formed by primers from *two different
 junctions in the same panel* — these are intra-panel cross-products, not genomic off-targets, and
 conflating the two categories misleads users and unfairly penalises pairs that happen to sit near
-another target.
+another target.~~
 
-**Required change:**
-
-In `specificity.py`, after `_is_on_target()` returns False, run a second check: iterate all
-*other* junctions in the panel and test `_is_on_target(prod, other_junction, other_pair)` for all
-candidate pairs at that junction. If any match, classify as `cross_target` rather than
-`off_target`.
-
-Add a `cross_target_products` list field to `PrimerPair` alongside `off_target_products`.
-Update `_build_enriched_pair_row()` to expose a `Cross_Target_Count` column and update
-`save_off_targets_csv()` to include a `Type` column (`off_target` vs `cross_target`).
-
-Do NOT penalise cross-target products in the cost function by default. They represent
-co-amplification of other intended targets (acceptable in some applications) and can be addressed
-by adjusting panel layout, not by discarding pairs.
-
-**Tests to add:** `tests/test_blast_specificity.py` — panel with two adjacent junctions whose
-primers fall within amplicon range of each other; assert cross-target classification.
+**Cancelled — for ctDNA panels, cross-target products are equally undesirable as genomic
+off-targets and are correctly treated as `off_target` by default.** Any non-intended amplicon in
+the multiplex reaction consumes primers, produces spurious signal, and reduces sensitivity. The
+proposed `cross_target` classification would add complexity without benefit for this use case.
 
 ---
 
@@ -149,7 +136,7 @@ the expected `bound_df` input schema and the generated `amplicon_df` output sche
 
 ---
 
-### REPT-01 · Panel QC Reporting Module
+### ~~REPT-01 · Panel QC Reporting Module~~ ✅ Implemented in v0.5.7
 
 **Severity: Important · Files: `src/plexus/pipeline.py`, new `src/plexus/reporting/qc.py`**
 
@@ -162,6 +149,11 @@ Clinical users require a high-level summary of the final panel quality and desig
   homopolymers.
 - **Cross-Reactivity Matrix:** A summary matrix (junction vs junction) showing the count of
   potential dimer interactions (based on current dimer scores).
+
+**Implementation:** Added `src/plexus/reporting/qc.py` with `generate_panel_qc()`, called from
+`run_pipeline()` after `panel_summary.json` is written. The call is wrapped in `try/except` so
+failures are non-fatal (logged as a warning). 16 unit tests added in
+`tests/test_reporting_qc.py`.
 
 This JSON can be expanded in later versions (v1.1) to support visual plots and HTML reports.
 
@@ -592,7 +584,7 @@ the BLAST database may be incomplete.
 ### ISPCR-04 · Improve AmpliconFinder: cross-target interaction matrix
 **File: `src/plexus/blast/offtarget_finder.py`**
 
-Build on FEAT-02 (v1.0 cross-target classification) to produce a structured cross-target
+Build on the BLAST amplicon-finding infrastructure to produce a structured cross-target
 interaction matrix: for each ordered pair of junctions (A, B), record whether any forward primer
 from A can co-amplify with any reverse primer from B. Output this as `cross_target_matrix.csv`
 with junctions on both axes and a count (or minimum product size) in each cell.
@@ -702,9 +694,9 @@ project.
 | ~~BUG-02~~ | ~~Fix `product_bp` off-by-one in AmpliconFinder~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |
 | ~~BUG-03~~ | ~~Fix BLAST+ v5 database detection~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.4 |
 | ~~FEAT-01~~ | ~~Switch to `blastn-short` task for primer queries~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
-| FEAT-02 | Cross-target vs off-target amplicon classification | v1.0 | Important | |
+| ~~FEAT-02~~ | ~~Cross-target vs off-target amplicon classification~~ | ~~v1.0~~ | ~~Important~~ | Cancelled |
 | ~~FEAT-03~~ | ~~Remove dead code from AmpliconFinder~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
-| REPT-01 | Basic Panel QC Report (JSON) | v1.0 | Important | |
+| ~~REPT-01~~ | ~~Basic Panel QC Report (JSON)~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.7 |
 | ~~AUDT-01~~ | ~~Tool versions and data checksums~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.5 |
 | ~~SYS-01~~ | ~~Pre-flight disk space check~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.5 |
 | ~~CLI-01~~ | ~~`plexus template` generation~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.6 |
@@ -712,6 +704,13 @@ project.
 | ~~ARCH-03~~ | ~~Replace `print()` with `logger` in blast_runner~~ | ~~v1.0~~ | ~~Minor~~ | ✅ v0.4.4 |
 | ~~DOC-01~~ | ~~Document input CSV format~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.6 |
 | ~~DOC-02~~ | ~~Chromosome naming validation / pre-flight check~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.6 |
+| ~~REPR-01~~ | ~~Chromosome naming check at `plexus run` time in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
+| ~~REPR-02~~ | ~~Random seed for stochastic selectors~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.2 |
+| ~~AUDT-02~~ | ~~Include `primer3-py` in compliance manifest~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.5 |
+| ~~AUDT-03~~ | ~~Record run success/failure status in `provenance.json`~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
+| ~~SCI-01~~ | ~~Weight SNP penalties by allele frequency~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.6 |
+| ~~ARCH-04~~ | ~~Remove genome download functionality~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.1 |
+| ~~ARCH-05~~ | ~~Allow registry use in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.3 |
 | ARCH-01 | Implement plexity penalty in cost function | v1.1 | Important | |
 | ISPCR-01 | ntthal ΔG scoring for BLAST binding sites | v1.1 | Important | |
 | ISPCR-02 | ΔG-weighted off-target cost in selector | v1.1 | Important | |
@@ -723,11 +722,4 @@ project.
 | EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
 | REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
 | SPLIT-01 | Automated Panel Splitting | Future | Future | |
-| ~~REPR-01~~ | ~~Chromosome naming check at `plexus run` time in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
-| ~~REPR-02~~ | ~~Random seed for stochastic selectors~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.2 |
-| ~~AUDT-02~~ | ~~Include `primer3-py` in compliance manifest~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.5 |
-| ~~AUDT-03~~ | ~~Record run success/failure status in `provenance.json`~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
-| ~~SCI-01~~ | ~~Weight SNP penalties by allele frequency~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.6 |
-| ~~ARCH-04~~ | ~~Remove genome download functionality~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.1 |
-| ~~ARCH-05~~ | ~~Allow registry use in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.3 |
 | TEST-01 | End-to-end integration test with real BLAST | v1.1 | Important | |
