@@ -2,13 +2,14 @@
 
 ### Added
 
-- **AUDT-02 · Include `primer3-py` in compliance manifest**: The compliance manifest now pins
-  Python packages alongside system tools. `primer3-py` is pinned at `2.3.0` in a new
-  `python_packages` section. `validate_environment()` checks installed Python package versions
-  via `importlib.metadata.version()` and produces the same structured verdicts (`"pass"` |
-  `"fail"` | `"missing"`) as system tools. Python package verdicts are surfaced in the
+- **AUDT-02 · Include `primer3-py` and `pysam` in compliance manifest**: The compliance manifest
+  now pins Python packages alongside system tools. `primer3-py` is pinned at `2.3.0` and `pysam`
+  at `0.23.3` in the `python_packages` section. `validate_environment()` checks installed Python
+  package versions via `importlib.metadata.version()` and produces the same structured verdicts
+  (`"pass"` | `"fail"` | `"missing"`) as system tools. Python package verdicts are surfaced in the
   `compliance_environment` block of `provenance.json`. Manifest version bumped from `"1.0"` to
-  `"1.1"`. Four new tests in `tests/test_env.py`.
+  `"1.1"`. `pyproject.toml` now carries `>=` lower-bound constraints for both compliance-relevant
+  packages (`primer3-py>=2.3.0`, `pysam>=0.23.3`). Seven new tests in `tests/test_env.py`.
 - **REPR-01 · Chromosome naming check at `plexus run` time**: `run_pipeline()` now calls
   `detect_chrom_naming_mismatch()` before writing provenance whenever SNP checking is enabled
   and a VCF path is supplied. In compliance mode a mismatch raises `ValueError` and aborts

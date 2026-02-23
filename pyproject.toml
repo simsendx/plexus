@@ -24,9 +24,9 @@ classifiers = [
 dependencies = [
     "loguru",
     "pandas",
-    "primer3-py",
+    "primer3-py>=2.3.0",
     "pydantic",
-    "pysam",
+    "pysam>=0.23.3",
     "rich",
     "typer",
 ]

@@ -23,6 +23,10 @@
     "primer3-py": {
       "exact_version": "2.3.0",
       "import_name": "primer3"
+    },
+    "pysam": {
+      "exact_version": "0.23.3",
+      "import_name": "pysam"
     }
   }
 }

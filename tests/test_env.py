@@ -194,14 +194,17 @@ class TestComplianceManifest:
         from plexus.utils.env import load_compliance_manifest, validate_environment
 
         manifest = load_compliance_manifest()
-        expected = manifest["python_packages"]["primer3-py"]["exact_version"]
+        pkg_versions = {
+            name: spec["exact_version"]
+            for name, spec in manifest["python_packages"].items()
+        }
 
         # No system tools requested, so mock_ver won't be called
-        mock_meta_ver.return_value = expected
+        mock_meta_ver.side_effect = lambda pkg: pkg_versions.get(pkg, "0.0.0")
 
         verdict = validate_environment(need_blast=False, need_snp=False)
         assert verdict["primer3-py"]["verdict"] == "pass"
-        assert verdict["primer3-py"]["actual"] == expected
+        assert verdict["primer3-py"]["actual"] == pkg_versions["primer3-py"]
 
     @patch("plexus.utils.env.get_tool_version")
     @patch("plexus.utils.env.importlib.metadata.version")
@@ -237,3 +240,54 @@ class TestComplianceManifest:
             validate_environment(need_blast=False, need_snp=False)
 
         assert "primer3-py: package not installed" in str(excinfo.value)
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_pysam_compliance_pass(self, mock_meta_ver, mock_ver):
+        """Pass verdict when pysam version matches manifest."""
+        from plexus.utils.env import load_compliance_manifest, validate_environment
+
+        manifest = load_compliance_manifest()
+        pkg_versions = {
+            name: spec["exact_version"]
+            for name, spec in manifest["python_packages"].items()
+        }
+
+        mock_meta_ver.side_effect = lambda pkg: pkg_versions.get(pkg, "0.0.0")
+
+        verdict = validate_environment(need_blast=False, need_snp=False)
+        assert verdict["pysam"]["verdict"] == "pass"
+        assert verdict["pysam"]["actual"] == pkg_versions["pysam"]
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_pysam_compliance_fail(self, mock_meta_ver, mock_ver):
+        """ComplianceError raised when pysam version mismatches."""
+        from plexus.utils.env import ComplianceError, validate_environment
+
+        mock_meta_ver.return_value = "0.22.0"
+
+        import pytest
+
+        with pytest.raises(ComplianceError) as excinfo:
+            validate_environment(need_blast=False, need_snp=False)
+
+        assert "pysam: expected exactly" in str(excinfo.value)
+        assert "0.22.0" in str(excinfo.value)
+
+    @patch("plexus.utils.env.get_tool_version")
+    @patch("plexus.utils.env.importlib.metadata.version")
+    def test_pysam_compliance_missing(self, mock_meta_ver, mock_ver):
+        """ComplianceError raised when pysam is not installed."""
+        import importlib.metadata
+
+        from plexus.utils.env import ComplianceError, validate_environment
+
+        mock_meta_ver.side_effect = importlib.metadata.PackageNotFoundError("pysam")
+
+        import pytest
+
+        with pytest.raises(ComplianceError) as excinfo:
+            validate_environment(need_blast=False, need_snp=False)
+
+        assert "pysam: package not installed" in str(excinfo.value)
