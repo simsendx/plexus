@@ -98,13 +98,11 @@ def design_multiplex_primers(
     # Start designing
     # =============================================
 
-    j = 0
     # Pick primers to left and right of each junction
     for junction in panel.junctions:
         logger.info(
             f"#========================// {junction.name} //============================#"
         )
-        j += 1
 
         try:
             # Get the design regions left and right of the junction, respectively.
@@ -231,7 +229,7 @@ def design_multiplex_primers(
             continue
 
     # Separate failed junctions (no primer pairs)
-    failed = [j for j in panel.junctions if not j.primer_pairs]
+    failed = [jn for jn in panel.junctions if not jn.primer_pairs]
     if failed:
         logger.warning(
             f"{len(failed)} junction(s) failed primer design and will be excluded."
@@ -241,9 +239,9 @@ def design_multiplex_primers(
                 f"  - {fj.name}: {getattr(fj, '_design_error', 'no valid primer pairs')}"
             )
     panel.failed_junctions = failed
-    panel.junctions = [j for j in panel.junctions if j.primer_pairs]
+    panel.junctions = [jn for jn in panel.junctions if jn.primer_pairs]
 
     logger.info(
-        f"Finished designing primers for {j} junctions in panel {panel.panel_name}."
+        f"Finished designing primers for {len(panel.junctions)} junctions in panel {panel.panel_name}."
     )
     return panel

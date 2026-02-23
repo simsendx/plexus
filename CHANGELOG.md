@@ -1,3 +1,35 @@
+## [0.5.4] - 23-02-2026
+
+### Fixed
+
+- **AUDT-03 · Run status in `provenance.json`**: `provenance.json` is now updated at the end of
+  every `run_pipeline()` call, whether the run succeeds or fails. The initial write includes
+  `"status": "started"` and `"completed_at": null`; the final write sets `"status"` to
+  `"completed"` or `"failed"`, records `"completed_at"` as an ISO 8601 UTC timestamp, and
+  writes `"steps_completed"` and `"errors"` from the pipeline result. The final write is
+  wrapped in a `try/finally` block so it executes even when an unhandled exception escapes
+  the pipeline, ensuring the audit trail is always accurate.
+- New `tests/test_pipeline.py` with four tests covering the provenance lifecycle: completed
+  status, failed status on exception, started status before pipeline work begins, and
+  `steps_completed` population.
+
+### Added
+
+- **Interactive `plexus init` wizard**: Running `plexus init` without `--fasta` in a terminal
+  now launches a step-by-step wizard that prompts for genome, FASTA path, SNP VCF, operational
+  mode, checksums file, BLAST index build, and force rebuild. A summary panel is displayed for
+  confirmation before proceeding. Uses `rich.prompt.Prompt` and `rich.prompt.Confirm` — no new
+  dependencies. All existing flags continue to work for non-interactive use (CI, Docker,
+  scripts). The wizard is never triggered in non-TTY environments.
+- Three new tests in `TestInitWizard`: wizard activation in TTY, non-TTY fallback, and
+  flags-override-wizard.
+
+### Changed
+
+- **Validation order in `init` command**: Genome and mode validation now fires before the
+  wizard/missing-flag checks, so `--genome badname` errors immediately regardless of other
+  flags.
+
 ## [0.5.3] - 20-02-2026
 
 ### Changed

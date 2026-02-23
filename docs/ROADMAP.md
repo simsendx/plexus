@@ -398,7 +398,7 @@ mismatch.
 
 ---
 
-### AUDT-03 · Record run success/failure status in `provenance.json`
+### ~~AUDT-03 · Record run success/failure status in `provenance.json`~~ ✅ Fixed in v0.5.4
 
 **Severity: Important · File: `src/plexus/pipeline.py`**
 
@@ -735,7 +735,7 @@ project.
 | REPR-01 | Chromosome naming check at `plexus run` time in compliance mode | v1.0 | Important | |
 | ~~REPR-02~~ | ~~Random seed for stochastic selectors~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.2 |
 | AUDT-02 | Include `primer3-py` in compliance manifest | v1.0 | Important | |
-| AUDT-03 | Record run success/failure status in `provenance.json` | v1.0 | Important | |
+| ~~AUDT-03~~ | ~~Record run success/failure status in `provenance.json`~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.4 |
 | SCI-01 | Weight SNP penalties by allele frequency | v1.0 | Important | |
 | ~~ARCH-04~~ | ~~Remove genome download functionality~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.1 |
 | ~~ARCH-05~~ | ~~Allow registry use in compliance mode~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.5.3 |

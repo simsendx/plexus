@@ -888,3 +888,92 @@ class TestStatelessRun:
                 assert "not initialized" in combined or "plexus init" in combined
             finally:
                 Path(csv_f.name).unlink()
+
+
+class TestInitWizard:
+    """Tests for the interactive init wizard."""
+
+    @patch("plexus.resources.init_genome")
+    @patch("plexus.resources.genome_status")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    @patch("plexus.cli._is_interactive", return_value=True)
+    def test_init_wizard_activates_when_tty(
+        self, _mock_tty, _mock_mode, mock_status, mock_init
+    ):
+        """Wizard activates when stdin is a TTY and --fasta is missing."""
+        mock_status.return_value = {
+            "fasta": True,
+            "fai": True,
+            "blast_db": True,
+            "snp_vcf": False,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": None,
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+
+        try:
+            with patch("plexus.cli._run_init_wizard") as mock_wizard:
+                mock_wizard.return_value = {
+                    "genome": "hg38",
+                    "fasta": Path(fasta_path),
+                    "snp_vcf": None,
+                    "skip_snp": True,
+                    "skip_blast": True,
+                    "force": False,
+                    "mode": "research",
+                    "checksums": None,
+                }
+                result = runner.invoke(app, ["init"])
+                assert result.exit_code == 0
+                mock_wizard.assert_called_once()
+                mock_init.assert_called_once()
+        finally:
+            Path(fasta_path).unlink()
+
+    def test_init_wizard_skipped_in_non_tty(self):
+        """Without a TTY, missing --fasta still errors immediately."""
+        with patch("sys.stdin") as mock_stdin:
+            mock_stdin.isatty.return_value = False
+            result = runner.invoke(app, ["init", "--genome", "hg38"])
+            assert result.exit_code == 1
+            assert "--fasta" in (result.output + (result.stderr or ""))
+
+    @patch("plexus.resources.init_genome")
+    @patch("plexus.resources.genome_status")
+    @patch("plexus.resources.get_operational_mode", return_value="research")
+    def test_init_flags_override_wizard(self, _mock_mode, mock_status, mock_init):
+        """When --fasta and --skip-snp are provided, wizard is never called."""
+        mock_status.return_value = {
+            "fasta": True,
+            "fai": True,
+            "blast_db": True,
+            "snp_vcf": False,
+            "fasta_sha256": "a" * 64,
+            "snp_vcf_sha256": None,
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as fa_f:
+            fasta_path = fa_f.name
+            fa_f.write(b">chr1\nACGT\n")
+
+        try:
+            with patch("plexus.cli._run_init_wizard") as mock_wizard:
+                result = runner.invoke(
+                    app,
+                    [
+                        "init",
+                        "--genome",
+                        "hg38",
+                        "--fasta",
+                        fasta_path,
+                        "--skip-snp",
+                    ],
+                )
+                assert result.exit_code == 0
+                mock_wizard.assert_not_called()
+                mock_init.assert_called_once()
+        finally:
+            Path(fasta_path).unlink()
