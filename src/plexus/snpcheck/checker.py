@@ -90,8 +90,10 @@ def _calc_weighted_snp_penalty(
     base_weight: float,
     three_prime_window: int,
     three_prime_multiplier: float,
+    af_threshold: float = 0.01,
+    snp_af_weight: float = 0.0,
 ) -> float:
-    """Weight SNP penalties by proximity to the primer's 3' end.
+    """Weight SNP penalties by proximity to the primer's 3' end and allele frequency.
 
     Coordinate logic (verified against design.py k-mer generation):
     - Forward primer: 5'->3' runs left-to-right on forward strand
@@ -100,9 +102,12 @@ def _calc_weighted_snp_penalty(
     - Reverse primer: 5'->3' runs right-to-left on forward strand
       3' end genomic pos = genomic_start (the leftmost coordinate)
       dist_from_3prime = snp_pos - genomic_start
+
+    AF scaling: penalty_per_snp = base_weight × position_multiplier × (af / af_threshold) ** snp_af_weight
+    snp_af_weight=0.0 gives af_scale=1.0 (identical to previous behaviour).
     """
     penalty = 0.0
-    for snp_pos, _af in snps:
+    for snp_pos, af in snps:
         if orientation == "forward":
             dist_from_3prime = (primer_genomic_start + primer_length - 1) - snp_pos
         else:
@@ -111,10 +116,11 @@ def _calc_weighted_snp_penalty(
         # Clamp to valid range (BLAST coords may be slightly off)
         dist_from_3prime = max(0, dist_from_3prime)
 
-        multiplier = (
+        position_multiplier = (
             three_prime_multiplier if dist_from_3prime < three_prime_window else 1.0
         )
-        penalty += base_weight * multiplier
+        af_scale = (af / af_threshold) ** snp_af_weight
+        penalty += base_weight * position_multiplier * af_scale
     return penalty
 
 
@@ -126,6 +132,7 @@ def run_snp_check(
     snp_penalty_weight: float,
     snp_3prime_window: int = 5,
     snp_3prime_multiplier: float = 3.0,
+    snp_af_weight: float = 0.0,
 ) -> None:
     """Check all primer pairs in the panel for SNP overlaps using a local VCF.
 
@@ -149,6 +156,10 @@ def run_snp_check(
         Number of bases from 3' end considered high-impact (default 5).
     snp_3prime_multiplier : float
         Penalty multiplier for SNPs within the 3' window (default 3.0).
+    snp_af_weight : float
+        Exponent for AF-based penalty scaling, normalised to af_threshold.
+        0.0 = no AF scaling (default, backwards compatible).
+        1.0 = linear scaling. 0.5 = sqrt scaling.
     """
     import pysam
 
@@ -198,6 +209,8 @@ def run_snp_check(
                             base_weight=snp_penalty_weight,
                             three_prime_window=snp_3prime_window,
                             three_prime_multiplier=snp_3prime_multiplier,
+                            af_threshold=af_threshold,
+                            snp_af_weight=snp_af_weight,
                         )
                         pair_snp_penalty += penalty
                         positions = [pos for pos, _ in snps]

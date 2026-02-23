@@ -1,3 +1,19 @@
+## [0.5.6] - 23-02-2026
+
+### Added
+
+- **SCI-01 · Weight SNP penalties by allele frequency**: `_calc_weighted_snp_penalty()` now
+  accepts `af_threshold` and `snp_af_weight` parameters. The penalty per SNP is scaled by
+  `(af / af_threshold) ** snp_af_weight`, so common population variants penalise primers more
+  heavily than rare ones near the filter threshold. `snp_af_weight=0.0` (the model default) gives
+  `af_scale=1.0` — identical to previous behaviour. `run_snp_check()` exposes the new
+  `snp_af_weight` keyword argument and threads it down to the penalty calculation.
+  `SnpCheckParameters` gains a `snp_af_weight` field (default `0.0`, validated `≥0`).
+  The `default` preset sets `snp_af_weight=1.0` (linear scaling); the `lenient` preset sets
+  `snp_af_weight=0.5` (sqrt scaling). Seven new tests in `TestAfWeightedSnpPenalty`;
+  existing `TestCalcWeightedSnpPenalty` and `TestRunSnpCheck` tests updated to pass
+  `snp_af_weight=0.0` for regression safety.
+
 ## [0.5.5] - 23-02-2026
 
 ### Added

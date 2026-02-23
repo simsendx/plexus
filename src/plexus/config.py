@@ -236,6 +236,16 @@ class SnpCheckParameters(BaseModel):
         default=False,
         description="Discard primer pairs overlapping any SNP above af_threshold",
     )
+    snp_af_weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Exponent for AF-based penalty scaling, normalised to af_threshold. "
+            "0.0 = no scaling (all passing SNPs penalised equally). "
+            "1.0 = linear scaling (SNP at 10× threshold → 10× penalty). "
+            "0.5 = sqrt scaling (recommended for most panels)."
+        ),
+    )
 
 
 class DesignerConfig(BaseModel):

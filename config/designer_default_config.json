@@ -67,7 +67,8 @@
         "snp_penalty_weight": 10.0,
         "snp_3prime_window": 5,
         "snp_3prime_multiplier": 3.0,
-        "snp_strict": false
+        "snp_strict": false,
+        "snp_af_weight": 1.0
     },
     "multiplex_picker_parameters": {
         "initial_solutions": 100,

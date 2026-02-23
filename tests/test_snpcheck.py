@@ -207,6 +207,7 @@ class TestRunSnpCheck:
                 snp_penalty_weight=5.0,
                 snp_3prime_window=5,
                 snp_3prime_multiplier=3.0,
+                snp_af_weight=0.0,
             )
 
         # Each primer gets 1 SNP -> pair gets 2 SNPs
@@ -234,6 +235,7 @@ class TestRunSnpCheck:
                 snp_penalty_weight=5.0,
                 snp_3prime_window=5,
                 snp_3prime_multiplier=3.0,
+                snp_af_weight=0.0,
             )
 
         assert pair.snp_count == 0
@@ -284,6 +286,7 @@ class TestRunSnpCheck:
                 snp_penalty_weight=5.0,
                 snp_3prime_window=5,
                 snp_3prime_multiplier=3.0,
+                snp_af_weight=0.0,
             )
 
         # pair_penalty stays None; snp_penalty is set separately
@@ -340,6 +343,7 @@ class TestSnpCheckConfig:
         assert params.snp_penalty_weight == 10.0
         assert params.snp_3prime_window == 5
         assert params.snp_3prime_multiplier == 3.0
+        assert params.snp_af_weight == 0.0
 
     def test_custom_values(self):
         params = SnpCheckParameters(af_threshold=0.05, snp_penalty_weight=10.0)
@@ -776,6 +780,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 3.0  # Boosted
 
@@ -790,6 +796,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 3.0
 
@@ -804,6 +812,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 1.0
 
@@ -818,6 +828,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 1.0
 
@@ -832,6 +844,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 3.0
 
@@ -846,6 +860,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 3.0
 
@@ -860,6 +876,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 1.0
 
@@ -874,6 +892,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 10.0 * 1.0
 
@@ -890,6 +910,8 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == (10.0 * 3.0) + (10.0 * 1.0)
 
@@ -903,5 +925,88 @@ class TestCalcWeightedSnpPenalty:
             base_weight=10.0,
             three_prime_window=5,
             three_prime_multiplier=3.0,
+            af_threshold=0.01,
+            snp_af_weight=0.0,
         )
         assert penalty == 0.0
+
+
+# ---------------------------------------------------------------------------
+# AF-weighted SNP penalty
+# ---------------------------------------------------------------------------
+
+
+class TestAfWeightedSnpPenalty:
+    """Tests for AF-based scaling in _calc_weighted_snp_penalty."""
+
+    def _penalty(
+        self,
+        snps,
+        af_threshold=0.01,
+        snp_af_weight=1.0,
+        base_weight=10.0,
+        orientation="forward",
+        primer_genomic_start=100,
+        primer_length=20,
+        three_prime_window=5,
+        three_prime_multiplier=3.0,
+    ):
+        return _calc_weighted_snp_penalty(
+            snps,
+            primer_genomic_start=primer_genomic_start,
+            primer_length=primer_length,
+            orientation=orientation,
+            base_weight=base_weight,
+            three_prime_window=three_prime_window,
+            three_prime_multiplier=three_prime_multiplier,
+            af_threshold=af_threshold,
+            snp_af_weight=snp_af_weight,
+        )
+
+    def test_snp_at_threshold_gives_scale_1(self):
+        """SNP exactly at threshold: (af/af_threshold)^1 = 1.0 -> no change in penalty."""
+        # SNP at pos 100 (outside 3' window), AF = threshold = 0.01
+        snps = [(100, 0.01)]
+        penalty = self._penalty(snps, af_threshold=0.01, snp_af_weight=1.0)
+        assert penalty == pytest.approx(10.0 * 1.0 * 1.0)
+
+    def test_linear_scaling_10x_threshold(self):
+        """snp_af_weight=1.0: SNP at 10× threshold -> 10× penalty."""
+        # SNP outside 3' window -> position_multiplier=1.0
+        snps = [(100, 0.10)]  # 10× threshold (0.01)
+        penalty = self._penalty(snps, af_threshold=0.01, snp_af_weight=1.0)
+        assert penalty == pytest.approx(10.0 * 1.0 * 10.0)
+
+    def test_sqrt_scaling_100x_threshold(self):
+        """snp_af_weight=0.5: SNP at 100× threshold -> 10× penalty."""
+        snps = [(100, 1.0)]  # 100× threshold (0.01)
+        penalty = self._penalty(snps, af_threshold=0.01, snp_af_weight=0.5)
+        assert penalty == pytest.approx(10.0 * 1.0 * 10.0)
+
+    def test_af_and_position_multipliers_are_multiplicative(self):
+        """3' SNP with high AF: both position_multiplier and af_scale are applied."""
+        # SNP at 3' end (pos 119, dist=0, inside window) with AF = 10× threshold
+        snps = [(119, 0.10)]
+        penalty = self._penalty(snps, af_threshold=0.01, snp_af_weight=1.0)
+        # base_weight=10.0, position_multiplier=3.0, af_scale=10.0
+        assert penalty == pytest.approx(10.0 * 3.0 * 10.0)
+
+    def test_multiple_snps_different_afs(self):
+        """Multiple SNPs with different AFs accumulate correctly."""
+        # SNP at pos 100 (outside window), AF=0.01 (threshold): af_scale=1.0
+        # SNP at pos 119 (inside window), AF=0.05 (5× threshold): af_scale=5.0
+        snps = [(100, 0.01), (119, 0.05)]
+        penalty = self._penalty(snps, af_threshold=0.01, snp_af_weight=1.0)
+        expected = (10.0 * 1.0 * 1.0) + (10.0 * 3.0 * 5.0)
+        assert penalty == pytest.approx(expected)
+
+    def test_af_weight_zero_matches_old_behaviour(self):
+        """snp_af_weight=0.0 -> af_scale=1.0 regardless of AF, regression guard."""
+        snps = [(100, 0.50)]  # Very common SNP
+        penalty_weighted = self._penalty(snps, af_threshold=0.01, snp_af_weight=0.0)
+        penalty_old = self._penalty(
+            snps, af_threshold=0.01, snp_af_weight=0.0, base_weight=10.0
+        )
+        # Both should equal base_weight * position_multiplier (1.0) * 1.0
+        assert penalty_weighted == pytest.approx(10.0 * 1.0)
+        assert penalty_weighted == pytest.approx(penalty_old)

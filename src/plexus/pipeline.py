@@ -457,6 +457,7 @@ def run_pipeline(
                     snp_penalty_weight=snp_config.snp_penalty_weight,
                     snp_3prime_window=snp_config.snp_3prime_window,
                     snp_3prime_multiplier=snp_config.snp_3prime_multiplier,
+                    snp_af_weight=snp_config.snp_af_weight,
                 )
                 result.steps_completed.append("snp_checked")
 
