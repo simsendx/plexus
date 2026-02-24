@@ -60,6 +60,7 @@ def test_get_tool_version_existing():
     # 'sh' is always available and --version typically produces output
     with patch("plexus.utils.env.check_executable", return_value=True):
         with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = "toolname 1.2.3\nExtra info"
             mock_run.return_value.stderr = ""
             result = get_tool_version("toolname")
@@ -76,6 +77,7 @@ def test_get_tool_version_falls_back_to_stderr():
     """Some tools write version info to stderr."""
     with patch("plexus.utils.env.check_executable", return_value=True):
         with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = "tool v3.0"
             result = get_tool_version("sometool")

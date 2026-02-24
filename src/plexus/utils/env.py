@@ -59,6 +59,8 @@ def get_tool_version(name: str) -> str | None:
                 text=True,
                 timeout=5,
             )
+            if result.returncode != 0:
+                continue
             output = (result.stdout or result.stderr or "").strip()
             if output:
                 return output.splitlines()[0]

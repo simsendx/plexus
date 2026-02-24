@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Updated documentation**: Removed stale notebooks from `docs/` directory and created a new updated notebook (`docs/getting_started.ipynb`) for the user to get started with `plexus`. Updated `README.md` and other documentation files to reflect the current state of the project.
+- **Updated compliance checks**: Updated compliance checks to use the `blastn` and `makeblastdb` commands with the `-version` flag to check the version of the tools. Updated compliance checks to use the `blast_formatter` command with the `-version` flag to check the version of the tools.
 
 ## [1.0.0b1] - 23-02-2026
 
