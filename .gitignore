@@ -9,7 +9,7 @@ __pycache__/
 *.DS_STORE
 .out/
 
-results/
+results*
 .claude/
 output*/
 CLAUDE.md

@@ -206,3 +206,78 @@ def test_chrom_naming_check_pass_recorded(
         )
     prov = json.loads((out / "provenance.json").read_text())
     assert prov["chrom_naming_check"] == "pass"
+
+
+# ── Registry-resolution tests ──────────────────────────────────────────────
+
+
+def test_chrom_naming_check_runs_via_registry(
+    fixture_fasta, fixture_csv, fixture_vcf, tmp_path
+):
+    """chrom_naming_check should not be 'skipped' when registry resolves a VCF."""
+    out = tmp_path / "output"
+    matching = {"chr1", "chr2", "chr3"}
+    with (
+        patch("plexus.pipeline.get_missing_tools", return_value=[]),
+        patch("plexus.resources.get_registered_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.utils.utils.get_fasta_contigs", return_value=matching),
+        patch("plexus.utils.utils.get_vcf_contigs", return_value=matching),
+        patch("plexus.snpcheck.snp_data.get_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.snpcheck.checker.run_snp_check"),
+    ):
+        run_pipeline(
+            input_file=fixture_csv,
+            fasta_file=fixture_fasta,
+            output_dir=out,
+            snp_vcf=None,  # no explicit VCF — registry should be used
+            run_blast=False,
+            skip_snpcheck=False,
+        )
+    prov = json.loads((out / "provenance.json").read_text())
+    assert (
+        prov["chrom_naming_check"] != "skipped"
+    ), "chrom_naming_check should run when a registry VCF is available"
+
+
+def test_snp_vcf_provenance_backfilled_from_registry(
+    fixture_fasta, fixture_csv, fixture_vcf, tmp_path
+):
+    """snp_vcf_path and snp_vcf_sha256 should be non-null when the registry resolves a VCF."""
+    out = tmp_path / "output"
+    fake_sha = "abc123fake"
+
+    def fake_registry():
+        return {
+            "hg38": {
+                "snp_vcf": str(fixture_vcf),
+                "snp_vcf_sha256": fake_sha,
+                "fasta": "",
+                "fasta_sha256": None,
+            }
+        }
+
+    with (
+        patch("plexus.pipeline.get_missing_tools", return_value=[]),
+        patch("plexus.resources.get_registered_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.pipeline._load_registry", fake_registry, create=True),
+        patch("plexus.resources._load_registry", fake_registry),
+        patch("plexus.utils.utils.get_fasta_contigs", return_value={"chr1"}),
+        patch("plexus.utils.utils.get_vcf_contigs", return_value={"chr1"}),
+        patch("plexus.snpcheck.snp_data.get_snp_vcf", return_value=fixture_vcf),
+        patch("plexus.snpcheck.checker.run_snp_check"),
+    ):
+        run_pipeline(
+            input_file=fixture_csv,
+            fasta_file=fixture_fasta,
+            output_dir=out,
+            snp_vcf=None,
+            run_blast=False,
+            skip_snpcheck=False,
+        )
+    prov = json.loads((out / "provenance.json").read_text())
+    assert prov["snp_vcf_path"] == str(
+        fixture_vcf
+    ), "snp_vcf_path should be the registry-resolved path"
+    assert (
+        prov["snp_vcf_sha256"] == fake_sha
+    ), "snp_vcf_sha256 should be populated from registry"

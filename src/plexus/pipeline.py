@@ -172,6 +172,29 @@ def _collect_provenance(
     return record
 
 
+def _resolve_source_vcf(
+    snp_vcf: str | Path | None,
+    genome: str,
+) -> Path | None:
+    """Return the effective SNP VCF source path without intersecting.
+
+    Priority: user arg → $PLEXUS_SNP_VCF → registry.
+    Returns None if nothing is available.
+    """
+    import os
+
+    from plexus.snpcheck.resources import ENV_SNP_VCF
+
+    if snp_vcf is not None:
+        return Path(snp_vcf)
+    env_vcf = os.environ.get(ENV_SNP_VCF)
+    if env_vcf:
+        return Path(env_vcf)
+    from plexus.resources import get_registered_snp_vcf
+
+    return get_registered_snp_vcf(genome)
+
+
 def run_pipeline(
     input_file: str | Path,
     fasta_file: str | Path,
@@ -290,8 +313,11 @@ def run_pipeline(
         config.multiplex_picker_parameters.selector_seed = selector_seed
 
     # ── Chromosome naming consistency check ──────────────────────────────────
+    effective_snp_vcf = (
+        _resolve_source_vcf(snp_vcf, genome) if not skip_snpcheck else None
+    )
     chrom_naming_check = "skipped"
-    if not skip_snpcheck and snp_vcf is not None:
+    if not skip_snpcheck and effective_snp_vcf is not None:
         from plexus.utils.utils import (
             detect_chrom_naming_mismatch,
             get_fasta_contigs,
@@ -300,7 +326,7 @@ def run_pipeline(
 
         try:
             fasta_contigs = get_fasta_contigs(fasta_file)
-            vcf_contigs = get_vcf_contigs(Path(snp_vcf))
+            vcf_contigs = get_vcf_contigs(effective_snp_vcf)
             mismatch = detect_chrom_naming_mismatch(fasta_contigs, vcf_contigs)
             if mismatch:
                 chrom_naming_check = "mismatch"
@@ -324,7 +350,7 @@ def run_pipeline(
     # ── Write provenance record ──────────────────────────────────────────────
     provenance = _collect_provenance(
         fasta_file=fasta_file,
-        snp_vcf=snp_vcf,
+        snp_vcf=effective_snp_vcf,
         genome=genome,
         run_blast=run_blast,
         skip_snpcheck=skip_snpcheck,

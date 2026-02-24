@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0b2] - 24-02-2026
 
+### Fixed
+
+- **Registry-resolved VCF now triggers chromosome naming check**: When `--snp-vcf` is not supplied, `run_pipeline()` now resolves the effective VCF source (user arg → `$PLEXUS_SNP_VCF` → registry) before the chromosome naming check via a new `_resolve_source_vcf()` helper. Previously the check was gated on `snp_vcf is not None`, so it was silently skipped for registry-backed runs and `provenance.json` recorded `"chrom_naming_check": "skipped"` even though SNP checking would proceed.
+- **`snp_vcf_path` and `snp_vcf_sha256` backfilled from registry**: `_collect_provenance()` is now passed the resolved VCF path instead of the raw (often `None`) CLI argument, so registry-registered paths and their stored SHA-256 hashes are correctly recorded in `provenance.json` even when `--snp-vcf` is omitted.
+
 ### Changed
 
 - **Updated documentation**: Removed stale notebooks from `docs/` directory and created a new updated notebook (`docs/getting_started.ipynb`) for the user to get started with `plexus`. Updated `README.md` and other documentation files to reflect the current state of the project.
