@@ -655,6 +655,11 @@ def calculate_single_primer_thermodynamics(primer_list, config, orientation: str
         PRIMER_WT_HAIRPIN_TH = singleplex.PRIMER_WT_HAIRPIN_TH
         PRIMER_WT_END_STABILITY = singleplex.PRIMER_WT_END_STABILITY
 
+        # primer3 thermodynamic approach uses (tm - 5) as the
+        # reference, see primer3plus.com/primer3plusHelp.html#primerBinding at line 658
+        # y substituting primer_tm - 5 instead of primer_tm, the formula starts penalizing when the secondary structure's Tm comes
+        # within 5°C of the primer Tm — not just when it exceeds it. It's a built-in safety margin: a hairpin or self-complementary
+        # structure needs to be at least ~5°C colder than the primer Tm to be considered non-problematic.
         tm_adjusted = primer_tm - 5
 
         if primer_tm > PRIMER_OPT_TM:
