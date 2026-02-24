@@ -29,7 +29,7 @@ The system is designed as a modular pipeline orchestrated by a high-level contro
         2. **Provenance**: Writes `provenance.json` to the output directory before any
            pipeline work (see Provenance section below).
         3. **Load Config & Panel**: Reads junction CSV and extracts design regions from FASTA.
-        4. **Design Primers**: Enumerates k-mer candidates using the `simsen` algorithm
+        4. **Design Primers**: Enumerates k-mer candidates using the `plexus` algorithm
            (`designer` module); `primer3-py` is used for thermodynamic filtering only
            (hairpin and self-dimer ΔG).
         5. **SNP Check (Optional)**: Filters and penalizes primers overlapping common SNPs
@@ -41,7 +41,7 @@ The system is designed as a modular pipeline orchestrated by a high-level contro
         8. **Save Results**: Outputs CSV files and JSON summaries to the output directory.
 
 3. **Designer (`designer/`)**:
-    * Implements the `simsen` k-mer enumeration algorithm: exhaustively generates candidate
+    * Implements the `plexus` k-mer enumeration algorithm: exhaustively generates candidate
       primers of varying lengths from the sequence flanking each junction.
     * Thermodynamic filtering uses `primer3-py` (`ThermoAnalysis`) for hairpin and self-binding
       ΔG. `primer3-py` does **not** perform primer design — Plexus does that itself.

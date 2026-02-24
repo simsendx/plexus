@@ -80,7 +80,7 @@ def test_provenance_started_before_pipeline_work(fixture_fasta, fixture_csv, tmp
 
     with patch(
         "plexus.pipeline.design_primers",
-        wraps=lambda panel, method="simsen", **kw: capture_and_design(panel, **kw),
+        wraps=lambda panel, method="plexus", **kw: capture_and_design(panel, **kw),
     ):
         run_pipeline(
             input_file=fixture_csv,

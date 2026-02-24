@@ -1,5 +1,5 @@
 # ================================================================================
-# Primer design module — "simsen" design algorithm
+# Primer design module — "plexus" design algorithm
 # ================================================================================
 
 import warnings
@@ -20,18 +20,18 @@ from plexus.utils.utils import generate_kmers, reverse_complement
 # ================================================================================
 
 
-def design_primers(panel: MultiplexPanel, method: str = "simsen") -> MultiplexPanel:
+def design_primers(panel: MultiplexPanel, method: str = "plexus") -> MultiplexPanel:
     """
     Wrapper function to call the design algorithm.
 
     Args:
         panel: An instantiated MultiplexPanel object created with panel_factory.
-        method: Design algorithm to use; defaults to "simsen".
+        method: Design algorithm to use; defaults to "plexus".
 
     Returns:
         A MultiplexPanel object with primer designs.
     """
-    if method == "simsen":
+    if method == "plexus":
         return design_multiplex_primers(panel)
     raise ValueError(f"Unknown design method: {method}")
 

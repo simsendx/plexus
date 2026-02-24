@@ -8,7 +8,7 @@
 
 ## Features
 
-- **Automated Primer Design**: Uses a custom k-mer enumeration algorithm (`simsen`) to generate primer candidates for each junction; `primer3-py` is used for thermodynamic filtering (hairpin/self-dimer ΔG, 3′-end stability).
+- **Automated Primer Design**: Uses a custom k-mer enumeration algorithm (`plexus`) to generate primer candidates for each junction; `primer3-py` is used for thermodynamic filtering (hairpin/self-dimer ΔG, 3′-end stability).
 - **SNP Checking**: Filters primer candidates that overlap common variants in gnomAD (or a user-supplied VCF). Supports strict mode (`--snp-strict`) to discard any SNP-overlapping pair. AF-based penalty scaling is configurable.
 - **Multiplex Optimisation**: Selects the optimal primer combination minimising cross-dimer potential. Five algorithms available: Greedy (default), Random, BruteForce, SimulatedAnnealing, DFS.
 - **Specificity Checking**: Integrates BLAST to check for off-target amplification and primer specificity.

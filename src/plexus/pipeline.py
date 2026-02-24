@@ -203,7 +203,7 @@ def run_pipeline(
     genome: str = "hg38",
     preset: str = "default",
     config_path: str | Path | None = None,
-    design_method: str = "simsen",
+    design_method: str = "plexus",
     run_blast: bool = True,
     padding: int = 200,
     snp_vcf: str | Path | None = None,
@@ -236,7 +236,7 @@ def run_pipeline(
     config_path : str | Path | None
         Path to custom configuration JSON file.
     design_method : str
-        Primer design algorithm (default: "simsen").
+        Primer design algorithm (default: "plexus").
     run_blast : bool
         Whether to run BLAST specificity check (default: True).
     padding : int
