@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated compliance checks**: Updated compliance checks to use the `blastn` and `makeblastdb` commands with the `-version` flag to check the version of the tools. Updated compliance checks to use the `blast_formatter` command with the `-version` flag to check the version of the tools.
 - **Renamed kmer design method**: Renamed kmer design method from "simsen" to "plexus".
 
+### Added
+
+- **Added unit tests to design.py**: Added unit tests to design.py to test the kmer design method.
+
 ## [1.0.0b1] - 23-02-2026
 
 ### Added
