@@ -367,8 +367,9 @@ def run_pipeline(
     with provenance_path.open("w") as _pf:
         _json.dump(provenance, _pf, indent=2, default=str)
 
-    # Sentinels for the finally handler — result may not exist if an early step fails
+    # Sentinels for the finally handler — result/panel may not exist if an early step fails
     result: PipelineResult | None = None
+    panel: MultiplexPanel | None = None
     _exc: BaseException | None = None
 
     try:
@@ -643,13 +644,6 @@ def run_pipeline(
                     result.selected_pairs,
                 )
 
-            # Panel summary JSON (includes provenance if available)
-            panel.save_panel_summary_json(
-                str(output_dir / "panel_summary.json"),
-                result,
-                provenance=provenance,
-            )
-
             # Panel QC report (REPT-01)
             if result.selected_pairs:
                 try:
@@ -744,5 +738,16 @@ def run_pipeline(
         try:
             with provenance_path.open("w") as _f:
                 _json.dump(_final_prov, _f, indent=2, default=str)
+        except Exception:
+            pass  # Never mask the original pipeline exception
+
+        # Rewrite panel_summary.json with finalized provenance
+        try:
+            if panel is not None and result is not None:
+                panel.save_panel_summary_json(
+                    str(output_dir / "panel_summary.json"),
+                    result,
+                    provenance=_final_prov,
+                )
         except Exception:
             pass  # Never mask the original pipeline exception

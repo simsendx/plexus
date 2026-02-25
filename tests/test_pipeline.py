@@ -239,6 +239,27 @@ def test_chrom_naming_check_runs_via_registry(
     ), "chrom_naming_check should run when a registry VCF is available"
 
 
+def test_panel_summary_has_completed_status(fixture_fasta, fixture_csv, tmp_path):
+    """panel_summary.json must have status=completed (not 'started') after a successful run."""
+    out = tmp_path / "output"
+    run_pipeline(
+        input_file=fixture_csv,
+        fasta_file=fixture_fasta,
+        output_dir=out,
+        run_blast=False,
+        skip_snpcheck=True,
+    )
+
+    summary_path = out / "panel_summary.json"
+    assert summary_path.exists(), "panel_summary.json was not written"
+    summary = json.loads(summary_path.read_text())
+    prov = summary.get("provenance", {})
+    assert (
+        prov.get("status") == "completed"
+    ), f"Expected status='completed', got {prov.get('status')!r}"
+    assert prov.get("completed_at") is not None, "completed_at should not be None"
+
+
 def test_snp_vcf_provenance_backfilled_from_registry(
     fixture_fasta, fixture_csv, fixture_vcf, tmp_path
 ):

@@ -70,8 +70,8 @@ def _count_snps_in_region(vcf, chrom, start, end, af_threshold):
     snps = []
     try:
         # pysam.VariantFile.fetch uses 0-based half-open coordinates
-        # To query 1-based [start, end) we use [start-1, end)
-        for record in vcf.fetch(chrom, start - 1, end):
+        # To query 1-based [start, end) we use [start-1, end-1]
+        for record in vcf.fetch(chrom, start - 1, end - 1):
             af = _get_allele_frequency(record)
             if af is not None and af >= af_threshold:
                 count += 1

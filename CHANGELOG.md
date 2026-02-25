@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0b3] - 25-02-2026
+
+### Fixed
+
+- **SNP check off-by-one (`checker.py`)**: `_count_snps_in_region()` was calling `vcf.fetch(chrom, start - 1, end)` where `end` is a 1-based exclusive upper bound. pysam uses 0-based half-open coordinates, so the correct call is `vcf.fetch(chrom, start - 1, end - 1)`. The previous call included one extra base beyond the primer's 3′ end, causing spurious SNP hits and inflated penalties for primers adjacent to a variant.
+- **Forward primer region off-by-one (`design.py`)**: The left-region slice for forward primer candidate generation used `junction.design_region[1 : junction.jmin_coordinate]`, silently discarding the first base of the design region. Changed to `[0 : junction.jmin_coordinate]`. The companion `position_offset=1` (which existed solely to compensate for the dropped base) has been corrected to `0`, keeping the genomic start coordinate arithmetic (`design_start + primer.start`) consistent.
+- **Stale `panel_summary.json` provenance**: `save_panel_summary_json()` was called mid-pipeline (Step 6) before the `finally` block finalized the provenance dict, so the file always contained `"status": "started"`. The call has been moved into the `finally` block, where it is written after `provenance.json` is updated with the terminal status (`"completed"` or `"failed"`). A `panel: MultiplexPanel | None = None` sentinel is now initialized before the `try` block (alongside the existing `result` sentinel) so the `finally` guard can safely check `panel is not None`. The mid-run write path is also guarded with `try/except` so a save failure never masks an upstream pipeline exception.
+
+### Added
+
+- **Unit tests for `aligner/align.py`** (`tests/test_aligner.py`, 22 tests): New test file covering the two public surfaces in the aligner module:
+  - `TestCreateNnScoreDict` (4 tests): verifies all 16 Watson-Crick dinucleotide pairs are present with negative scores, that keys absent from both JSON files receive the `double_mismatch_score`, and that single-mismatch entries correctly override the double-mismatch fallback.
+  - `TestLinearExtensionBonus` (5 tests): exercises `_calc_linear_extension_bonus()` directly — no-overhang zero, full left/right bonuses, early stop at first mismatch, and all-False case.
+  - `TestPrimerDimerPredictor` (13 tests): state validation guards (`ValueError` before `set_primers`/`align`), scoring direction (complementary pair → negative, poly-A vs poly-C → positive, self-complementary palindrome → negative), return-type assertions for `PrimerAlignment`, alignment-string content, parameter-cache population, and an end-to-end extension-bonus integration test confirming a 3′-overlapping pair scores more negatively than an otherwise identical 5′-overlapping pair.
+- **Pipeline provenance test for `panel_summary.json`** (`tests/test_pipeline.py`): `test_panel_summary_has_completed_status` runs a full mocked pipeline and asserts that `panel_summary.json` contains `provenance.status == "completed"` and a non-null `completed_at`.
+
 ## [1.0.0b2] - 25-02-2026
 
 ### Added

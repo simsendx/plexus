@@ -142,7 +142,7 @@ class TestRegionExtraction:
         self._run_happy_path(mock_kmers, mock_thermo, minimal_junction, minimal_panel)
 
         fwd_call = mock_kmers.call_args_list[0]
-        expected = minimal_junction.design_region[1 : minimal_junction.jmin_coordinate]
+        expected = minimal_junction.design_region[0 : minimal_junction.jmin_coordinate]
         assert fwd_call.kwargs["target_sequence"] == expected
 
     @patch("plexus.designer.design.calculate_single_primer_thermodynamics")
@@ -167,7 +167,7 @@ class TestRegionExtraction:
         self, mock_kmers, mock_thermo, minimal_junction, minimal_panel
     ):
         self._run_happy_path(mock_kmers, mock_thermo, minimal_junction, minimal_panel)
-        assert mock_kmers.call_args_list[0].kwargs["position_offset"] == 1
+        assert mock_kmers.call_args_list[0].kwargs["position_offset"] == 0
 
     @patch("plexus.designer.design.calculate_single_primer_thermodynamics")
     @patch("plexus.designer.design.generate_kmers")
