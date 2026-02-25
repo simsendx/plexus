@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0b2] - 24-02-2026
 
+### Added
+
+- **Multithreaded BLAST via `--blast-threads`**: `blastn` now runs with `-num_threads` to parallelise the database scan — the dominant bottleneck for short-query (`blastn-short`) workloads. The new `--blast-threads` CLI option (default: `4`) and `blast_num_threads` parameter on `run_pipeline()` control the thread count. When running N panels concurrently with `--max-workers N`, set `--blast-threads floor(6/N)` to keep total BLAST CPU at ≤ 6 threads.
+
 ### Fixed
 
 - **Registry-resolved VCF now triggers chromosome naming check**: When `--snp-vcf` is not supplied, `run_pipeline()` now resolves the effective VCF source (user arg → `$PLEXUS_SNP_VCF` → registry) before the chromosome naming check via a new `_resolve_source_vcf()` helper. Previously the check was gated on `snp_vcf is not None`, so it was silently skipped for registry-backed runs and `provenance.json` recorded `"chrom_naming_check": "skipped"` even though SNP checking would proceed.

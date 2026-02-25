@@ -90,7 +90,9 @@ class BlastRunner:
 
         return self
 
-    def run(self, output_archive, word_size=None, task="blastn-short"):
+    def run(
+        self, output_archive, word_size=None, task="blastn-short", num_threads: int = 1
+    ):
         """
         Run blast, writing a BLAST archive to `output_archive`.
 
@@ -118,6 +120,8 @@ class BlastRunner:
         ]
         if word_size is not None:
             cmd.extend(["-word_size", str(word_size)])
+        if num_threads > 1:
+            cmd.extend(["-num_threads", str(num_threads)])
 
         run_command(cmd, check=True, retries=2)
 

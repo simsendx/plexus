@@ -212,6 +212,7 @@ def run_pipeline(
     snp_strict: bool = False,
     selector: str = "Greedy",
     selector_seed: int | None = None,
+    blast_num_threads: int = 4,
     debug: bool = False,
     fasta_sha256: str | None = None,
     snp_vcf_sha256: str | None = None,
@@ -510,13 +511,20 @@ def run_pipeline(
         # Step 4: Run BLAST specificity check (optional)
         # =========================================================================
         if run_blast:
-            logger.info("Running BLAST specificity check...")
+            logger.info(
+                f"Running BLAST specificity check (num_threads={blast_num_threads})..."
+            )
 
             try:
                 from plexus.blast.specificity import run_specificity_check
 
                 blast_dir = output_dir / "blast"
-                run_specificity_check(panel, str(blast_dir), str(fasta_file))
+                run_specificity_check(
+                    panel,
+                    str(blast_dir),
+                    str(fasta_file),
+                    num_threads=blast_num_threads,
+                )
                 result.steps_completed.append("specificity_checked")
                 logger.info("Specificity check complete")
             except ImportError as e:

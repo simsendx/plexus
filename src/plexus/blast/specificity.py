@@ -8,7 +8,9 @@ from plexus.blast.offtarget_finder import AmpliconFinder
 from plexus.designer.multiplexpanel import MultiplexPanel
 
 
-def run_specificity_check(panel: MultiplexPanel, work_dir: str, genome_fasta: str):
+def run_specificity_check(
+    panel: MultiplexPanel, work_dir: str, genome_fasta: str, num_threads: int = 1
+):
     """
     Run BLAST on all candidate primers in the panel to check for specificity
     and identify off-target amplicons.
@@ -41,7 +43,7 @@ def run_specificity_check(panel: MultiplexPanel, work_dir: str, genome_fasta: st
 
     runner = BlastRunner(input_fasta, genome_fasta)
     runner.create_database()
-    runner.run(output_archive=blast_archive)
+    runner.run(output_archive=blast_archive, num_threads=num_threads)
     runner.reformat_output_as_table(blast_table)
 
     blast_df = runner.get_dataframe()
