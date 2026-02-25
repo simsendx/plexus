@@ -89,7 +89,7 @@ class Junction:
     jmin_coordinate: int = None
     jmax_coordinate: int = None
     primer_designs: object = None
-    primer_pairs: list = None
+    primer_pairs: list | None = None
 
     def __repr__(self):
         return f"Junction({self.name}, {self.chrom}:{self.start}-{self.end})"
@@ -503,6 +503,12 @@ class MultiplexPanel:
                         junction.chrom, design_start - 1, design_end
                     )
 
+                    if not design_sequence:
+                        logger.warning(
+                            f"Empty design region for {junction.name} — check coordinates or FASTA contig boundary"
+                        )
+                        continue
+
                     # Store in junction object
                     junction.design_region = design_sequence.upper()
                     junction.design_start = design_start
@@ -546,7 +552,7 @@ class MultiplexPanel:
 
                 # Ensure coordinates are within design region bounds
                 jmin_coordinate = max(0, jmin_coordinate)
-                jmax_coordinate = min(junction.junction_length - 1, jmax_coordinate)
+                jmax_coordinate = min(junction.junction_length, jmax_coordinate)
 
                 junction.jmin_coordinate = jmin_coordinate
                 junction.jmax_coordinate = jmax_coordinate
@@ -877,11 +883,13 @@ class MultiplexPanel:
             "Forward_Genomic_Start": design_start + pair.forward.start,
             "Forward_Genomic_End": design_start
             + pair.forward.start
-            + pair.forward.length,
+            + pair.forward.length
+            - 1,
             "Reverse_Genomic_Start": design_start + pair.reverse.start,
             "Reverse_Genomic_End": design_start
             + pair.reverse.start
-            + pair.reverse.length,
+            + pair.reverse.length
+            - 1,
             "Amplicon_Length": pair.amplicon_length,
             "Insert_Size": pair.insert_size,
             "Pair_Penalty": pair.pair_penalty,

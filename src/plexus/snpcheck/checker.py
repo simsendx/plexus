@@ -77,8 +77,8 @@ def _count_snps_in_region(vcf, chrom, start, end, af_threshold):
                 count += 1
                 snps.append((record.pos + 1, af))
     except ValueError:
-        # Contig not in VCF (e.g. alt contigs)
-        pass
+        # Contig not in VCF (e.g. alt contigs or chr-prefix mismatch); SNP count = 0
+        logger.debug(f"Contig {chrom} not in VCF; SNP count set to 0")
     return count, snps
 
 

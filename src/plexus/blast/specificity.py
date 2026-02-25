@@ -165,7 +165,9 @@ def _is_on_target(prod: dict, junction, pair) -> bool:
     # so the rightmost = start + length - 1.
     expected_rev_start = design_start + pair.reverse.start + pair.reverse.length - 1
 
-    # Allow small tolerance for BLAST coordinate alignment differences
+    # Allow small tolerance for BLAST coordinate alignment differences.
+    # 5 bp chosen to absorb minor alignment shifts while still distinguishing
+    # on-target hits from nearby off-target loci.
     tolerance = 5  # bp
     fwd_match = abs(prod["F_start"] - expected_fwd_start) <= tolerance
     rev_match = abs(prod["R_start"] - expected_rev_start) <= tolerance

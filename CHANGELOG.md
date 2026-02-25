@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`*_Genomic_End` columns now 1-based inclusive (`multiplexpanel.py`)**: `Forward_Genomic_End` and `Reverse_Genomic_End` in the output CSV previously used a half-open (exclusive) end (`design_start + start + length`). Changed to `design_start + start + length - 1` so the values are 1-based inclusive and directly comparable to genome browser coordinates, BED intervals (after +1), IGV, and Primer-BLAST output. Internal coordinate arithmetic (SNP region queries, BLAST on-target checks) is unaffected.
+- **`jmax_coordinate` boundary clamp corrected (`multiplexpanel.py`)**: The upper bound of the junction coordinate window was clamped to `junction_length - 1` instead of `junction_length`. The off-by-one forced a single-base right region when the junction fell exactly at the design region boundary; the junction was excluded either way, but the formula was conceptually wrong. Removed the `- 1`.
+- **Empty design region guard (`multiplexpanel.py`)**: Added an explicit check after `fasta.fetch()` — if the returned sequence is empty (e.g. junction at a contig boundary or misconfigured coordinate), a warning is logged and the junction is skipped cleanly instead of producing an unhelpful index error downstream.
+- **VCF contig-missing debug log (`checker.py`)**: The `ValueError` from `vcf.fetch()` when a contig is absent from the VCF was previously swallowed silently. Now logs at `DEBUG` level so chromosome prefix mismatches (e.g. `chr1` vs `1`) are detectable without increasing normal log verbosity.
+- **Reverse kmer negative-position assertion (`utils.py`)**: Added `assert start_pos >= 0` after the reverse primer offset calculation in `generate_kmers()`. A negative value would indicate a misconfigured `position_offset` or sequence length and would silently propagate to a negative `*_Genomic_Start` in the output CSV.
+- **BLAST on-target tolerance documented (`specificity.py`)**: Added an explanatory comment for the 5 bp coordinate tolerance used in `_is_on_target()`.
+- **`primer_pairs` type annotation corrected (`multiplexpanel.py`)**: Changed `primer_pairs: list = None` to `primer_pairs: list | None = None` to produce a valid type annotation.
+
 - **Unit tests for `aligner/align.py`** (`tests/test_aligner.py`, 22 tests): New test file covering the two public surfaces in the aligner module:
   - `TestCreateNnScoreDict` (4 tests): verifies all 16 Watson-Crick dinucleotide pairs are present with negative scores, that keys absent from both JSON files receive the `double_mismatch_score`, and that single-mismatch entries correctly override the double-mismatch fallback.
   - `TestLinearExtensionBonus` (5 tests): exercises `_calc_linear_extension_bonus()` directly — no-overhang zero, full left/right bonuses, early stop at first mismatch, and all-False case.
