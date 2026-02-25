@@ -132,6 +132,25 @@ def test_reformat_output_command(runner, tmp_path):
         assert any("6 qseqid sseqid" in arg for arg in command)
 
 
+def test_run_emits_num_threads_when_gt_1(runner, tmp_path):
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, num_threads=4)
+        cmd = mock_run.call_args[0][0]
+        assert "-num_threads" in cmd
+        assert "4" in cmd
+
+
+def test_run_omits_num_threads_when_1(runner, tmp_path):
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, num_threads=1)
+        cmd = mock_run.call_args[0][0]
+        assert "-num_threads" not in cmd
+
+
 def test_get_dataframe(runner, tmp_path):
     output_table = tmp_path / "output.txt"
     runner.output_table = str(output_table)

@@ -5,7 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0b1] - 24-02-2026
+## [1.0.0b2] - 25-02-2026
+
+### Added
+
+- **Multithreaded BLAST via `--blast-threads`**: `blastn` now runs with `-num_threads` to parallelise the database scan — the dominant bottleneck for short-query (`blastn-short`) workloads. The new `--blast-threads` CLI option (default: `4`) and `blast_num_threads` parameter on `run_pipeline()` control the thread count. When running N panels concurrently with `--max-workers N`, set `--blast-threads floor(6/N)` to keep total BLAST CPU at ≤ 6 threads.
+
+### Fixed
+
+- **Registry-resolved VCF now triggers chromosome naming check**: When `--snp-vcf` is not supplied, `run_pipeline()` now resolves the effective VCF source (user arg → `$PLEXUS_SNP_VCF` → registry) before the chromosome naming check via a new `_resolve_source_vcf()` helper. Previously the check was gated on `snp_vcf is not None`, so it was silently skipped for registry-backed runs and `provenance.json` recorded `"chrom_naming_check": "skipped"` even though SNP checking would proceed.
+- **`snp_vcf_path` and `snp_vcf_sha256` backfilled from registry**: `_collect_provenance()` is now passed the resolved VCF path instead of the raw (often `None`) CLI argument, so registry-registered paths and their stored SHA-256 hashes are correctly recorded in `provenance.json` even when `--snp-vcf` is omitted.
+
+### Changed
+
+- **Updated documentation**: Removed stale notebooks from `docs/` directory and created a new updated notebook (`docs/getting_started.ipynb`) for the user to get started with `plexus`. Updated `README.md` and other documentation files to reflect the current state of the project.
+- **Updated compliance checks**: Updated compliance checks to use the `blastn` and `makeblastdb` commands with the `-version` flag to check the version of the tools. Updated compliance checks to use the `blast_formatter` command with the `-version` flag to check the version of the tools.
+- **Renamed kmer design method**: Renamed kmer design method from "simsen" to "plexus".
+
+### Added
+
+- **Added unit tests to design.py**: Added unit tests to design.py to test the kmer design method.
+
+## [1.0.0b1] - 23-02-2026
 
 ### Added
 
@@ -13,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cancelled). Full end-to-end integration tests, compliance infrastructure, audit trail, and
   panel QC reporting in place.
 
-## [0.5.8] - 24-02-2026
+## [0.5.8] - 23-02-2026
 
 ### Added
 
@@ -24,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `panel_summary.json` is written; wrapped in `try/except` so QC failures are non-fatal
   (logged as a warning). 16 unit tests in `tests/test_reporting_qc.py`.
 
-## [0.5.7] - 24-02-2026
+## [0.5.7] - 23-02-2026
 
 ### Changed
 

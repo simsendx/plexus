@@ -29,7 +29,7 @@ The system is designed as a modular pipeline orchestrated by a high-level contro
         2. **Provenance**: Writes `provenance.json` to the output directory before any
            pipeline work (see Provenance section below).
         3. **Load Config & Panel**: Reads junction CSV and extracts design regions from FASTA.
-        4. **Design Primers**: Enumerates k-mer candidates using the `simsen` algorithm
+        4. **Design Primers**: Enumerates k-mer candidates using the `plexus` algorithm
            (`designer` module); `primer3-py` is used for thermodynamic filtering only
            (hairpin and self-dimer ΔG).
         5. **SNP Check (Optional)**: Filters and penalizes primers overlapping common SNPs
@@ -41,7 +41,7 @@ The system is designed as a modular pipeline orchestrated by a high-level contro
         8. **Save Results**: Outputs CSV files and JSON summaries to the output directory.
 
 3. **Designer (`designer/`)**:
-    * Implements the `simsen` k-mer enumeration algorithm: exhaustively generates candidate
+    * Implements the `plexus` k-mer enumeration algorithm: exhaustively generates candidate
       primers of varying lengths from the sequence flanking each junction.
     * Thermodynamic filtering uses `primer3-py` (`ThermoAnalysis`) for hairpin and self-binding
       ΔG. `primer3-py` does **not** perform primer design — Plexus does that itself.
@@ -172,8 +172,9 @@ operation. Currently covers:
 | `bcftools` | 1.23 |
 
 `validate_environment()` in `utils/env.py` checks installed tool versions against the manifest
-using regex extraction and raises `ComplianceError` on any mismatch or missing tool. A
-`python_packages` section for `primer3-py` is a planned addition (ROADMAP AUDT-02).
+using regex extraction and raises `ComplianceError` on any mismatch or missing tool. The manifest
+also includes a `python_packages` section (AUDT-02) that pins `primer3-py` and `pysam` versions,
+which are verified via `importlib.metadata` at runtime.
 
 ### Provenance (`provenance.json`)
 
@@ -358,7 +359,7 @@ and translates host paths to container paths. Pulls the image from
 
 ```bash
 plexus docker \
-    --tag 0.5.0 \
+    --tag 1.0.0 \
     --fasta /data/hg38.fa \
     --snp-vcf /data/gnomad.vcf.gz \
     --checksums /data/checksums.sha256 \

@@ -177,6 +177,17 @@ def run(
             help="Random seed for stochastic selectors (Greedy, Random, SimulatedAnnealing).",
         ),
     ] = None,
+    blast_threads: Annotated[
+        int,
+        typer.Option(
+            "--blast-threads",
+            help=(
+                "Threads for blastn (-num_threads). Default: 4. "
+                "When running N panels in parallel with --max-workers N, "
+                "set this to floor(6 / N) to cap total CPU at 6 threads."
+            ),
+        ),
+    ] = 4,
     debug: Annotated[
         bool,
         typer.Option(
@@ -331,6 +342,7 @@ def run(
             snp_strict=snp_strict,
             selector=selector,
             selector_seed=selector_seed,
+            blast_num_threads=blast_threads,
             debug=debug,
             fasta_sha256=fasta_sha256,
             snp_vcf_sha256=snp_vcf_sha256,

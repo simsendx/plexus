@@ -92,6 +92,30 @@ def test_run_specificity_check_integration(mock_panel, tmp_path):
         assert pair.on_target_detected is False
 
 
+def test_run_specificity_check_forwards_num_threads(mock_panel, tmp_path):
+    with (
+        patch("plexus.blast.specificity.BlastRunner") as MockRunner,
+        patch("plexus.blast.specificity.BlastResultsAnnotator") as MockAnnotator,
+        patch("plexus.blast.specificity.AmpliconFinder") as MockFinder,
+        patch("os.makedirs"),
+    ):
+        runner_instance = MockRunner.return_value
+        runner_instance.get_dataframe.return_value = pd.DataFrame({"dummy": [1]})
+
+        annotator_instance = MockAnnotator.return_value
+        annotator_instance.get_predicted_bound.return_value = pd.DataFrame(
+            {"dummy_bound": [1]}
+        )
+
+        finder_instance = MockFinder.return_value
+        finder_instance.amplicon_df = pd.DataFrame()
+
+        run_specificity_check(mock_panel, str(tmp_path), "genome.fa", num_threads=6)
+
+        _, kwargs = runner_instance.run.call_args
+        assert kwargs.get("num_threads") == 6
+
+
 def test_run_specificity_check_no_hits(mock_panel, tmp_path):
     with (
         patch("plexus.blast.specificity.BlastRunner") as MockRunner,

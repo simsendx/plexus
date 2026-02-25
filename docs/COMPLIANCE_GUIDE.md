@@ -22,7 +22,7 @@ git clone https://github.com/sfilges/plexus
 cd plexus
 
 # Build the versioned compliance image
-docker build -t plexus:0.5.0-strict -f docker/DOCKERFILE .
+docker build -t plexus:1.0.0 -f docker/DOCKERFILE .
 ```
 
 ---
@@ -75,7 +75,7 @@ Plexus includes a built-in command that automatically handles the complex volume
 
 ```bash
 plexus docker \
-  --tag 0.5.0-strict \
+  --tag 1.0.0 \
   --input ./inputs/junctions.csv \
   --fasta ./data/hg38.fa \
   --snp-vcf ./data/gnomad.vcf.gz \
@@ -93,7 +93,7 @@ plexus docker \
 
 The `plexus docker` command uses a **Local-First** approach:
 
-1. **Local Search**: It first checks for the image (e.g., `plexus:0.5.0-strict`) on your machine.
+1. **Local Search**: It first checks for the image (e.g., `plexus:1.0.0`) on your machine.
 2. **Auto-Pull**: If missing, it attempts to pull from the registry (default: `ghcr.io/sfilges/plexus`).
 3. **Private Registries**: Use the `--registry` flag to specify a custom registry prefix. You must be logged in via `docker login` before running.
 4. **Forced Refresh**: Use `--pull` to force an update from the registry even if a local version exists.
@@ -101,7 +101,7 @@ The `plexus docker` command uses a **Local-First** approach:
 ```bash
 plexus docker \
   --registry my-private-registry.com/clinical-tools/plexus \
-  --tag 0.5.0-strict \
+  --tag 1.0.0 \
   --pull \
   --input junctions.csv ...
 ```
@@ -120,7 +120,7 @@ docker run --rm \
   -v $(pwd)/data:/data:ro \
   -v $(pwd)/inputs:/inputs:ro \
   -v $(pwd)/results:/results \
-  plexus:0.5.0-strict \
+  plexus:1.0.0 \
   run \
     --input /inputs/junctions.csv \
     --fasta /data/hg38.fa \
@@ -158,7 +158,7 @@ To verify a previous run for an auditor:
 
 ```bash
 # Check the image metadata
-docker inspect plexus:0.5.0-strict --format='{{json .Config.Labels}}' | jq
+docker inspect plexus:1.0.0 --format='{{json .Config.Labels}}' | jq
 
 # Compare the hash in provenance.json with your original resource record
 cat results/run_2026-02-20/provenance.json | jq .fasta_sha256
