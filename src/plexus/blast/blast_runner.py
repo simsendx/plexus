@@ -99,6 +99,8 @@ class BlastRunner:
         evalue: float | None = None,
         reward: int | None = None,
         penalty: int | None = None,
+        max_hsps: int | None = None,
+        dust: str | None = None,
     ):
         """
         Run blast, writing a BLAST archive to `output_archive`.
@@ -133,6 +135,10 @@ class BlastRunner:
             cmd.extend(["-reward", str(reward)])
         if penalty is not None:
             cmd.extend(["-penalty", str(penalty)])
+        if max_hsps is not None:
+            cmd.extend(["-max_hsps", str(max_hsps)])
+        if dust is not None:
+            cmd.extend(["-dust", dust])
         if num_threads > 1:
             cmd.extend(["-num_threads", str(num_threads)])
 

@@ -79,6 +79,8 @@
         "blast_word_size": 7,
         "blast_reward": 1,
         "blast_penalty": -1,
+        "blast_max_hsps": 100,
+        "blast_dust": "yes",
         "max_amplicon_size": 2000,
         "ontarget_tolerance": 5
     },

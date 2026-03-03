@@ -182,6 +182,8 @@ def test_run_specificity_check_forwards_blast_parameters(mock_panel, tmp_path):
             blast_word_size=11,
             blast_reward=2,
             blast_penalty=-3,
+            blast_max_hsps=50,
+            blast_dust="no",
         )
 
         # Verify annotator received custom thresholds
@@ -198,6 +200,8 @@ def test_run_specificity_check_forwards_blast_parameters(mock_panel, tmp_path):
         assert run_kwargs.get("word_size") == 11
         assert run_kwargs.get("reward") == 2
         assert run_kwargs.get("penalty") == -3
+        assert run_kwargs.get("max_hsps") == 50
+        assert run_kwargs.get("dust") == "no"
 
 
 def test_run_specificity_check_no_hits(mock_panel, tmp_path):

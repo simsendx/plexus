@@ -320,6 +320,26 @@ class BlastParameters(BaseModel):
             "3'-anchored filters still reject true noise."
         ),
     )
+    blast_max_hsps: int = Field(
+        default=100,
+        ge=1,
+        le=10000,
+        description=(
+            "Maximum HSPs per query-subject pair passed to blastn via -max_hsps. "
+            "Each chromosome is one subject; 100 is generous for real binding sites "
+            "and avoids wasting time on thousands of low-quality HSPs."
+        ),
+    )
+    blast_dust: str = Field(
+        default="yes",
+        pattern=r"^(yes|no|\d+ \d+ \d+)$",
+        description=(
+            "Low-complexity filter passed to blastn via -dust. "
+            "blastn-short defaults to 'no'; enabling it ('yes') avoids extending "
+            "seeds in Alu/LINE regions, improving runtime without affecting "
+            "off-target detection."
+        ),
+    )
     max_amplicon_size: int = Field(
         default=2000,
         ge=100,

@@ -196,6 +196,8 @@ class TestBlastParameters:
         assert params.blast_word_size == 7
         assert params.blast_reward == 1
         assert params.blast_penalty == -1
+        assert params.blast_max_hsps == 100
+        assert params.blast_dust == "yes"
         assert params.max_amplicon_size == 2000
         assert params.ontarget_tolerance == 5
 

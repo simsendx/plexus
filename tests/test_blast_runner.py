@@ -196,6 +196,48 @@ def test_run_omits_reward_penalty_when_none(runner, tmp_path):
         assert "-penalty" not in cmd
 
 
+def test_run_includes_max_hsps_when_provided(runner, tmp_path):
+    """max_hsps parameter is included in the blastn command when set."""
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, max_hsps=100)
+        cmd = mock_run.call_args[0][0]
+        assert "-max_hsps" in cmd
+        assert "100" in cmd
+
+
+def test_run_omits_max_hsps_when_none(runner, tmp_path):
+    """max_hsps parameter is omitted from the blastn command when None."""
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, max_hsps=None)
+        cmd = mock_run.call_args[0][0]
+        assert "-max_hsps" not in cmd
+
+
+def test_run_includes_dust_when_provided(runner, tmp_path):
+    """dust parameter is included in the blastn command when set."""
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, dust="yes")
+        cmd = mock_run.call_args[0][0]
+        assert "-dust" in cmd
+        assert "yes" in cmd
+
+
+def test_run_omits_dust_when_none(runner, tmp_path):
+    """dust parameter is omitted from the blastn command when None."""
+    output_archive = str(tmp_path / "out.asn")
+    runner.db_path = "/fake/db"
+    with patch("subprocess.run") as mock_run:
+        runner.run(output_archive, dust=None)
+        cmd = mock_run.call_args[0][0]
+        assert "-dust" not in cmd
+
+
 def test_get_dataframe(runner, tmp_path):
     output_table = tmp_path / "output.txt"
     runner.output_table = str(output_table)

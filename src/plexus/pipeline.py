@@ -538,6 +538,8 @@ def run_pipeline(
                     blast_word_size=blast_config.blast_word_size,
                     blast_reward=blast_config.blast_reward,
                     blast_penalty=blast_config.blast_penalty,
+                    blast_max_hsps=blast_config.blast_max_hsps,
+                    blast_dust=blast_config.blast_dust,
                 )
                 result.steps_completed.append("specificity_checked")
                 logger.info("Specificity check complete")

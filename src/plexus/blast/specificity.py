@@ -23,6 +23,8 @@ def run_specificity_check(
     blast_word_size: int = 7,
     blast_reward: int = 1,
     blast_penalty: int = -1,
+    blast_max_hsps: int = 100,
+    blast_dust: str = "yes",
 ):
     """
     Run BLAST on all candidate primers in the panel to check for specificity
@@ -74,6 +76,8 @@ def run_specificity_check(
             word_size=blast_word_size,
             reward=blast_reward,
             penalty=blast_penalty,
+            max_hsps=blast_max_hsps,
+            dust=blast_dust,
         )
         runner.reformat_output_as_table(blast_table)
     finally:
