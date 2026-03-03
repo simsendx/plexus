@@ -367,8 +367,9 @@ def run_pipeline(
     with provenance_path.open("w") as _pf:
         _json.dump(provenance, _pf, indent=2, default=str)
 
-    # Sentinels for the finally handler — result may not exist if an early step fails
+    # Sentinels for the finally handler — result/panel may not exist if an early step fails
     result: PipelineResult | None = None
+    panel: MultiplexPanel | None = None
     _exc: BaseException | None = None
 
     try:
@@ -516,7 +517,10 @@ def run_pipeline(
             )
 
             try:
-                from plexus.blast.specificity import run_specificity_check
+                from plexus.blast.specificity import (
+                    filter_offtarget_pairs,
+                    run_specificity_check,
+                )
 
                 blast_dir = output_dir / "blast"
                 run_specificity_check(
@@ -527,6 +531,19 @@ def run_pipeline(
                 )
                 result.steps_completed.append("specificity_checked")
                 logger.info("Specificity check complete")
+
+                n_removed, fallback_junctions = filter_offtarget_pairs(panel)
+                if n_removed > 0:
+                    logger.info(
+                        f"Off-target filter: removed {n_removed} primer pair(s) "
+                        "with off-target products"
+                    )
+                for name in fallback_junctions:
+                    result.errors.append(
+                        f"Off-target filter: '{name}' — no clean pairs; "
+                        "least-affected pair kept"
+                    )
+                result.steps_completed.append("offtarget_filtered")
             except ImportError as e:
                 logger.warning(f"BLAST module not available: {e}")
                 result.errors.append(f"BLAST not available: {e}")
@@ -643,13 +660,6 @@ def run_pipeline(
                     result.selected_pairs,
                 )
 
-            # Panel summary JSON (includes provenance if available)
-            panel.save_panel_summary_json(
-                str(output_dir / "panel_summary.json"),
-                result,
-                provenance=provenance,
-            )
-
             # Panel QC report (REPT-01)
             if result.selected_pairs:
                 try:
@@ -744,5 +754,16 @@ def run_pipeline(
         try:
             with provenance_path.open("w") as _f:
                 _json.dump(_final_prov, _f, indent=2, default=str)
+        except Exception:
+            pass  # Never mask the original pipeline exception
+
+        # Rewrite panel_summary.json with finalized provenance
+        try:
+            if panel is not None and result is not None:
+                panel.save_panel_summary_json(
+                    str(output_dir / "panel_summary.json"),
+                    result,
+                    provenance=_final_prov,
+                )
         except Exception:
             pass  # Never mask the original pipeline exception

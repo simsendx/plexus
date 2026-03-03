@@ -100,7 +100,7 @@ def design_multiplex_primers(panel: MultiplexPanel) -> MultiplexPanel:
 
         try:
             # Get the design regions left and right of the junction, respectively.
-            left_region = junction.design_region[1 : junction.jmin_coordinate]
+            left_region = junction.design_region[0 : junction.jmin_coordinate]
 
             # Should the right region be reverse complemented here?
             right_region = reverse_complement(
@@ -113,9 +113,9 @@ def design_multiplex_primers(panel: MultiplexPanel) -> MultiplexPanel:
             # which have been filtered based on length and basic sequence properties.
             # The offset is necessary as the start positions of the generated kmer
             # (on the design_region) are starting at position jmax_coordinate for the
-            # reverse primer and at 1 for the forward primer.
+            # reverse primer and at 0 for the forward primer.
             for orientation, region, offset in [
-                ("forward", left_region, 1),
+                ("forward", left_region, 0),
                 ("reverse", right_region, junction.jmax_coordinate),
             ]:
                 if len(region) < min_region_length:

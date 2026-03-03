@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0b3] - 03-03-2026
+
+### Fixed
+
+- **BLAST `length_pass_3prime` too strict on mismatches (`annotator.py`)**: `length_pass_3prime` required `pident == 100`, rejecting 3' alignments with even a single mismatch. A 16 bp 3'-anchored hit with 1 mismatch (e.g. 93.75% identity) is biologically likely to prime in PCR, but was missed by the specificity check. Replaced the `pident == 100` condition with `mismatch <= max_mismatches` (default 2), which is more biologically meaningful — a primer with 1–2 mismatches in a 15+ bp 3' stretch will still bind. The `max_mismatches` parameter is exposed on `build_annotation_dict()` for configurability.
+- **SNP check off-by-one (`checker.py`)**: `_count_snps_in_region()` was calling `vcf.fetch(chrom, start - 1, end)` where `end` is a 1-based exclusive upper bound. pysam uses 0-based half-open coordinates, so the correct call is `vcf.fetch(chrom, start - 1, end - 1)`. The previous call included one extra base beyond the primer's 3′ end, causing spurious SNP hits and inflated penalties for primers adjacent to a variant.
+- **Forward primer region off-by-one (`design.py`)**: The left-region slice for forward primer candidate generation used `junction.design_region[1 : junction.jmin_coordinate]`, silently discarding the first base of the design region. Changed to `[0 : junction.jmin_coordinate]`. The companion `position_offset=1` (which existed solely to compensate for the dropped base) has been corrected to `0`, keeping the genomic start coordinate arithmetic (`design_start + primer.start`) consistent.
+- **Stale `panel_summary.json` provenance**: `save_panel_summary_json()` was called mid-pipeline (Step 6) before the `finally` block finalized the provenance dict, so the file always contained `"status": "started"`. The call has been moved into the `finally` block, where it is written after `provenance.json` is updated with the terminal status (`"completed"` or `"failed"`). A `panel: MultiplexPanel | None = None` sentinel is now initialized before the `try` block (alongside the existing `result` sentinel) so the `finally` guard can safely check `panel is not None`. The mid-run write path is also guarded with `try/except` so a save failure never masks an upstream pipeline exception.
+
+### Added
+
+- **Off-target hard filter (`specificity.py`)**: New `filter_offtarget_pairs()` removes primer pairs with BLAST off-target amplicons before multiplex optimization. Per junction, pairs with zero off-targets are kept; when all pairs have off-targets, the pair with fewest is retained as a fallback. Called automatically from `run_pipeline()` after `run_specificity_check()`. Previously the only mechanism was a soft cost penalty (`wt_off_target * count`), which was often insufficient to outweigh thermodynamic scores, allowing off-target-contaminated pairs into the final panel. 5 new tests in `test_blast_specificity.py`.
+- **`*_Genomic_End` columns now 1-based inclusive (`multiplexpanel.py`)**: `Forward_Genomic_End` and `Reverse_Genomic_End` in the output CSV previously used a half-open (exclusive) end (`design_start + start + length`). Changed to `design_start + start + length - 1` so the values are 1-based inclusive and directly comparable to genome browser coordinates, BED intervals (after +1), IGV, and Primer-BLAST output. Internal coordinate arithmetic (SNP region queries, BLAST on-target checks) is unaffected.
+- **`jmax_coordinate` boundary clamp corrected (`multiplexpanel.py`)**: The upper bound of the junction coordinate window was clamped to `junction_length - 1` instead of `junction_length`. The off-by-one forced a single-base right region when the junction fell exactly at the design region boundary; the junction was excluded either way, but the formula was conceptually wrong. Removed the `- 1`.
+- **Empty design region guard (`multiplexpanel.py`)**: Added an explicit check after `fasta.fetch()` — if the returned sequence is empty (e.g. junction at a contig boundary or misconfigured coordinate), a warning is logged and the junction is skipped cleanly instead of producing an unhelpful index error downstream.
+- **VCF contig-missing debug log (`checker.py`)**: The `ValueError` from `vcf.fetch()` when a contig is absent from the VCF was previously swallowed silently. Now logs at `DEBUG` level so chromosome prefix mismatches (e.g. `chr1` vs `1`) are detectable without increasing normal log verbosity.
+- **Reverse kmer negative-position assertion (`utils.py`)**: Added `assert start_pos >= 0` after the reverse primer offset calculation in `generate_kmers()`. A negative value would indicate a misconfigured `position_offset` or sequence length and would silently propagate to a negative `*_Genomic_Start` in the output CSV.
+- **BLAST on-target tolerance documented (`specificity.py`)**: Added an explanatory comment for the 5 bp coordinate tolerance used in `_is_on_target()`.
+- **`primer_pairs` type annotation corrected (`multiplexpanel.py`)**: Changed `primer_pairs: list = None` to `primer_pairs: list | None = None` to produce a valid type annotation.
+
+- **Unit tests for `aligner/align.py`** (`tests/test_aligner.py`, 22 tests): New test file covering the two public surfaces in the aligner module:
+  - `TestCreateNnScoreDict` (4 tests): verifies all 16 Watson-Crick dinucleotide pairs are present with negative scores, that keys absent from both JSON files receive the `double_mismatch_score`, and that single-mismatch entries correctly override the double-mismatch fallback.
+  - `TestLinearExtensionBonus` (5 tests): exercises `_calc_linear_extension_bonus()` directly — no-overhang zero, full left/right bonuses, early stop at first mismatch, and all-False case.
+  - `TestPrimerDimerPredictor` (13 tests): state validation guards (`ValueError` before `set_primers`/`align`), scoring direction (complementary pair → negative, poly-A vs poly-C → positive, self-complementary palindrome → negative), return-type assertions for `PrimerAlignment`, alignment-string content, parameter-cache population, and an end-to-end extension-bonus integration test confirming a 3′-overlapping pair scores more negatively than an otherwise identical 5′-overlapping pair.
+- **Pipeline provenance test for `panel_summary.json`** (`tests/test_pipeline.py`): `test_panel_summary_has_completed_status` runs a full mocked pipeline and asserts that `panel_summary.json` contains `provenance.status == "completed"` and a non-null `completed_at`.
+
+### Changed
+
+- **Conda environment file** (`config/environment.yml`): Updated to use `pip:` for Python dependencies. This ensures that `primer3-py` and `pysam` are installed from PyPI, which is the recommended way to install these packages in a Conda environment.
+- **Updated Readme** (`README.md`): Updated to include instructions on how to install the package and how to use it.
+
 ## [1.0.0b2] - 25-02-2026
 
 ### Added

@@ -287,6 +287,9 @@ def generate_kmers(
                     # For reverse primers, convert position to original forward coordinates
                     # The end of the kmer in the RC sequence corresponds to the start in the forward
                     start_pos = position_offset + len(target_sequence) - (x + k)
+                    assert (
+                        start_pos >= 0
+                    ), f"Negative start_pos={start_pos} for reverse kmer at x={x}, k={k}"
                 else:
                     start_pos = position_offset + x
 
