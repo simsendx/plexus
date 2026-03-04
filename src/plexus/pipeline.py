@@ -55,6 +55,7 @@ class PipelineResult:
     config: DesignerConfig
     steps_completed: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     multiplex_solutions: list = field(default_factory=list)
     selected_pairs: list = field(default_factory=list)
     failed_junctions: list = field(default_factory=list)
@@ -94,6 +95,11 @@ class MultiPanelResult:
         return [pid for pid, r in self.panel_results.items() if not r.success]
 
     @property
+    def warned_panels(self) -> list[str]:
+        """Panel IDs that had warnings."""
+        return [pid for pid, r in self.panel_results.items() if r.warnings]
+
+    @property
     def total_junctions(self) -> int:
         """Total junctions across all panels."""
         return sum(r.num_junctions for r in self.panel_results.values())
@@ -119,6 +125,7 @@ class MultiPanelResult:
                     "selected_pairs": len(r.selected_pairs),
                     "success": r.success,
                     "errors": r.errors,
+                    "warnings": r.warnings,
                 }
                 for pid, r in self.panel_results.items()
             },
@@ -624,8 +631,9 @@ def run_pipeline(
                             f"SNP strict mode: removed {n_removed} primer pairs overlapping SNPs"
                         )
                         for name in fallback_junctions:
-                            result.errors.append(
-                                f"SNP strict: '{name}' — no SNP-free pairs found; least-affected pair kept"
+                            result.warnings.append(
+                                f"SNP strict: '{name}' — no SNP-free pairs found; "
+                                "all least-affected pairs kept"
                             )
                         result.steps_completed.append("snp_strict_filtered")
                 except Exception as e:
@@ -681,9 +689,9 @@ def run_pipeline(
                             "with off-target products"
                         )
                     for name in fallback_junctions:
-                        result.errors.append(
+                        result.warnings.append(
                             f"Off-target filter: '{name}' — no clean pairs; "
-                            "least-affected pair kept"
+                            "all least-affected pairs kept"
                         )
                     result.steps_completed.append("offtarget_filtered")
                 except ImportError as e:
@@ -863,10 +871,14 @@ def run_pipeline(
                     f"(best cost: {result.multiplex_solutions[0].cost:.2f})"
                 )
             logger.info(f"Steps completed: {', '.join(result.steps_completed)}")
+            if result.warnings:
+                logger.warning(f"Warnings: {len(result.warnings)}")
+                for warn in result.warnings:
+                    logger.warning(f"  - {warn}")
             if result.errors:
-                logger.warning(f"Errors encountered: {len(result.errors)}")
+                logger.error(f"Errors encountered: {len(result.errors)}")
                 for err in result.errors:
-                    logger.warning(f"  - {err}")
+                    logger.error(f"  - {err}")
             logger.info(f"Output directory: {output_dir}")
             logger.info("=" * 60)
 
@@ -894,6 +906,8 @@ def run_pipeline(
         else:
             _final_prov["status"] = "completed"
             _final_prov["errors"] = result.errors if result else []
+
+        _final_prov["warnings"] = result.warnings if result else []
 
         _final_prov["completed_at"] = _completed_at
         _final_prov["steps_completed"] = result.steps_completed if result else []
