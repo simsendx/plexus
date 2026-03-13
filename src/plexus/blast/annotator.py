@@ -38,33 +38,38 @@ class BlastResultsAnnotator:
             at or near the 3' end will have ``qend < qlen``.  A tolerance
             of 2-3 catches these cases without accepting 5'-only hits.
         """
+        self.annotation_params = {
+            "length_threshold": length_threshold,
+            "evalue_threshold": evalue_threshold,
+            "max_mismatches": max_mismatches,
+            "three_prime_tolerance": three_prime_tolerance,
+        }
+        # Keep annotation names for summarise_by_primer
         self.annotations = {
-            "from_3prime": lambda row: (row["qlen"] - row["qend"])
-            <= three_prime_tolerance,
-            "length_pass_3prime": lambda row: (
-                row["length"] >= length_threshold
-                and row["mismatch"] <= max_mismatches
-                and row["from_3prime"]
-            ),
-            "evalue_pass_3prime": lambda row: (
-                row["evalue"] < evalue_threshold and row["from_3prime"]
-            ),
-            "predicted_bound": lambda row: (
-                row["length_pass_3prime"] or row["evalue_pass_3prime"]
-            ),
+            "from_3prime": None,
+            "length_pass_3prime": None,
+            "evalue_pass_3prime": None,
+            "predicted_bound": None,
         }
 
     def add_annotations(self):
         """
-        Add annotations to `blast_df`
+        Add annotations to `blast_df` using vectorized column operations.
 
         """
-        for annot_name, annot_func in self.annotations.items():
-            self.blast_df.insert(
-                self.blast_df.shape[1],
-                annot_name,
-                self.blast_df.apply(func=annot_func, axis=1),
-            )
+        p = self.annotation_params
+        df = self.blast_df
+
+        df["from_3prime"] = (df["qlen"] - df["qend"]) <= p["three_prime_tolerance"]
+        df["length_pass_3prime"] = (
+            (df["length"] >= p["length_threshold"])
+            & (df["mismatch"] <= p["max_mismatches"])
+            & df["from_3prime"]
+        )
+        df["evalue_pass_3prime"] = (df["evalue"] < p["evalue_threshold"]) & df[
+            "from_3prime"
+        ]
+        df["predicted_bound"] = df["length_pass_3prime"] | df["evalue_pass_3prime"]
 
     def get_predicted_bound(self):
         """

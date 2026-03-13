@@ -589,6 +589,55 @@ the BLAST database may be incomplete.
 
 ---
 
+### SPEC-01 · Assign cross-pair off-target amplicons to primer pairs
+
+**Severity: Important · Files: `src/plexus/blast/specificity.py`, `src/plexus/selector/cost.py`**
+
+`AmpliconFinder.find_amplicons()` correctly discovers amplicons formed by primers from different
+pairs (e.g., forward from pair A + reverse from pair B on the same chromosome). However, the
+mapping step in `run_specificity_check()` (step 6, line 112+) only looks up amplicons keyed by
+a single pair's own `(f_id, r_id)`. Cross-pair amplicons exist in `amplicon_map` but are never
+retrieved — they silently fall through because no single `PrimerPair` owns both primer IDs.
+
+**Impact:** For multiplex panels, cross-pair off-target products are the most likely source of
+spurious amplification (many more primer combinations than same-pair). These products are
+computed by BLAST and identified by `AmpliconFinder`, but never assigned to any pair. They do
+not appear in `off_targets.csv`, do not affect `filter_offtarget_pairs()`, and do not contribute
+to the `wt_off_target` cost term. The specificity check is therefore blind to the dominant class
+of off-target risk in multiplex reactions.
+
+**Required changes:**
+
+1. After the per-pair mapping loop in `run_specificity_check()`, perform a second pass that
+   identifies cross-pair amplicons — entries in `amplicon_map` where `F_primer` belongs to one
+   pair and `R_primer` belongs to a different pair (or different junction).
+2. Assign each cross-pair amplicon to **both** contributing pairs (the pair that owns the forward
+   primer and the pair that owns the reverse primer), so that both are penalised. Add a
+   `cross_pair: bool` flag to the product dict to distinguish these from same-pair off-targets.
+3. Ensure cross-pair off-targets are surfaced in `off_targets.csv` with both contributing pair
+   IDs visible.
+4. Verify that `filter_offtarget_pairs()` and `wt_off_target` in the cost function correctly
+   account for the increased off-target counts.
+
+**Design consideration:** A cross-pair amplicon penalises two pairs simultaneously. If pair A's
+forward primer participates in cross-products with 5 different reverse primers from other pairs,
+replacing pair A eliminates all 5 — but the current per-pair count treats them independently.
+Consider whether cross-pair off-targets should carry a reduced weight or whether the existing
+`wt_off_target` is sufficient given that the selector can swap individual pairs.
+
+**Relationship to other items:**
+- ISPCR-04 (cross-target interaction matrix) is a reporting view of the same underlying data;
+  SPEC-01 makes the data actionable in the selector.
+- ISPCR-02 (ΔG-weighted off-target cost) would naturally extend to cross-pair products once
+  they are tracked.
+
+**Tests to add:** `tests/test_specificity.py` — construct a mock `bound_df` with primers from
+two different pairs that form a cross-pair amplicon; assert that both pairs receive the
+off-target product. Assert that the off-target CSV includes the cross-pair product with both
+pair IDs.
+
+---
+
 ### ISPCR-04 · Improve AmpliconFinder: cross-target interaction matrix
 **File: `src/plexus/blast/offtarget_finder.py`**
 
@@ -660,13 +709,18 @@ consistently to junction coordinates, VCF queries, and BLAST sequence IDs.
 
 ---
 
-### REPT-02 · Visual QC Report (HTML)
+### ~~REPT-02 · Visual QC Report (HTML)~~ ✅ Implemented in v1.1.0
 
 **Severity: Low**
 
-Transform the `panel_qc.json` (REPT-01) into a visual, standalone HTML report. This should
-include Plotly or Seaborn charts for distributions and a searchable heatmap for the
-cross-reactivity matrix, facilitating rapid review by clinical lab staff.
+Transform the `panel_qc.json` (REPT-01) into a visual, standalone HTML report with Plotly.js
+charts for Tm distribution, amplicon size, GC content, and a cross-reactivity heatmap.
+
+**Implementation:** Added `src/plexus/reporting/html_report.py` with `generate_html_report()`
+and a Jinja2 template (`panel_report.html.j2`) that inlines Plotly.js basic for fully
+offline-capable reports. Integrated into the pipeline after `panel_qc.json` write. Added
+`plexus report` CLI command for standalone re-generation. 11 tests in
+`tests/test_reporting_html.py`.
 
 ---
 
@@ -724,11 +778,12 @@ project.
 | ISPCR-01 | ntthal ΔG scoring for BLAST binding sites | v1.1 | Important | |
 | ISPCR-02 | ΔG-weighted off-target cost in selector | v1.1 | Important | |
 | ISPCR-03 | Template mispriming check | v1.1 | Low | |
+| SPEC-01 | Assign cross-pair off-target amplicons to primer pairs | v1.1 | Important | |
 | ISPCR-04 | Cross-target interaction matrix output | v1.1 | Low | |
 | PERF-01 | Parallel thermodynamics by default | v1.1 | Low | |
 | PERF-02 | Pre-filter candidates per junction before optimisation | v1.1 | Low | |
 | EXT-01 | Additional genome presets | v1.1 | Low | |
 | EXT-02 | Chromosome naming normalisation | v1.1 | Low | |
-| REPT-02 | Visual QC Report (HTML) | v1.1 | Low | |
+| ~~REPT-02~~ | ~~Visual QC Report (HTML)~~ | ~~v1.1~~ | ~~Low~~ | ✅ v1.1.0 |
 | SPLIT-01 | Automated Panel Splitting | Future | Future | |
 | ~~TEST-01~~ | ~~End-to-end integration test with real BLAST~~ | ~~v1.0~~ | ~~Important~~ | ✅ v0.4.0 |
