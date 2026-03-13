@@ -1,5 +1,4 @@
-from collections import namedtuple
-
+import numpy as np
 import pandas as pd
 
 
@@ -56,79 +55,129 @@ class AmpliconFinder:
         # Generated
         self.amplicon_df = None
 
+    def _get_col_or_none(self, df, col):
+        """Return column values as array, or None if column is missing."""
+        if col in df.columns:
+            return df[col].values
+        return None
+
     def find_amplicons(self, max_size_bp=6000):
         """
         Identify all potential amplicons within max_size_bp.
+
+        Uses sorted arrays and np.searchsorted for O(F log R) per chromosome
+        instead of O(F × R) nested iteration.
 
         Args:
             max_size_bp (int): Maximum predicted product size to consider.
         """
 
-        # Storage -- can make flexible
-        Amplicon = namedtuple(
-            "Amplicon",
-            [
-                "chrom",
-                "F_target",
-                "R_target",
-                "F_primer",
-                "R_primer",
-                "F_start",
-                "R_start",
-                "product_bp",
-                "F_pident",
-                "R_pident",
-                "F_mismatch",
-                "R_mismatch",
-                "F_align_len",
-                "R_align_len",
-                "F_evalue",
-                "R_evalue",
-            ],
-        )
+        amplicon_columns = [
+            "chrom",
+            "F_target",
+            "R_target",
+            "F_primer",
+            "R_primer",
+            "F_start",
+            "R_start",
+            "product_bp",
+            "F_pident",
+            "R_pident",
+            "F_mismatch",
+            "R_mismatch",
+            "F_align_len",
+            "R_align_len",
+            "F_evalue",
+            "R_evalue",
+        ]
+        result_chunks = []
+        target_map = self.target_map
 
-        # Iterate and find amplicons
-        amplicons = []
         for chrom, chrom_df in self.bound_df.groupby("sseqid"):
-            for _, F_df in chrom_df.query("sstrand == 'plus'").iterrows():
-                # Get start position of the forward primer
-                # 5' position
-                F_start = int(F_df["sstart"])
+            fwd = chrom_df[chrom_df["sstrand"] == "plus"]
+            rev = chrom_df[chrom_df["sstrand"] == "minus"]
 
-                # Get proximal reverse primers, if they exist
-                # - Very important to get directionality of query correct
-                R_df = chrom_df.query(
-                    "sstrand == 'minus' and 0 < (sstart - @F_start) < @max_size_bp"
-                )
+            if fwd.empty or rev.empty:
+                continue
 
-                # Check for any pairs
-                if R_df.shape[0] > 0:
-                    F_amplicons = [
-                        Amplicon(
-                            chrom=chrom,
-                            F_target=self.target_map.get(
-                                F_df["qseqid"], F_df["qseqid"].split("_")[0]
-                            ),
-                            R_target=self.target_map.get(
-                                row["qseqid"], row["qseqid"].split("_")[0]
-                            ),
-                            F_primer=F_df["qseqid"],
-                            R_primer=row["qseqid"],
-                            F_start=F_start,
-                            R_start=row["sstart"],
-                            product_bp=row["sstart"] - F_start + 1,
-                            F_pident=F_df.get("pident", None),
-                            R_pident=row.get("pident", None),
-                            F_mismatch=F_df.get("mismatch", None),
-                            R_mismatch=row.get("mismatch", None),
-                            F_align_len=F_df.get("length", None),
-                            R_align_len=row.get("length", None),
-                            F_evalue=F_df.get("evalue", None),
-                            R_evalue=row.get("evalue", None),
-                        )
-                        for _, row in R_df.iterrows()
-                    ]
-                    amplicons.extend(F_amplicons)
+            # Sort reverse hits by sstart for searchsorted
+            rev = rev.sort_values("sstart")
+            r_starts = rev["sstart"].values
+            r_qseqids = rev["qseqid"].values
+            r_pident = self._get_col_or_none(rev, "pident")
+            r_mismatch = self._get_col_or_none(rev, "mismatch")
+            r_length = self._get_col_or_none(rev, "length")
+            r_evalue = self._get_col_or_none(rev, "evalue")
+
+            f_starts = fwd["sstart"].values
+            f_qseqids = fwd["qseqid"].values
+            f_pident = self._get_col_or_none(fwd, "pident")
+            f_mismatch = self._get_col_or_none(fwd, "mismatch")
+            f_length = self._get_col_or_none(fwd, "length")
+            f_evalue = self._get_col_or_none(fwd, "evalue")
+
+            for i in range(len(f_starts)):
+                f_start = f_starts[i]
+                # Find reverse hits where 0 < (r_start - f_start) < max_size_bp
+                lo = np.searchsorted(
+                    r_starts, f_start, side="right"
+                )  # r_start > f_start
+                hi = np.searchsorted(
+                    r_starts, f_start + max_size_bp, side="left"
+                )  # r_start < f_start + max_size_bp
+
+                if lo >= hi:
+                    continue
+
+                n_matches = hi - lo
+                f_qseqid = f_qseqids[i]
+                f_target = target_map.get(f_qseqid, f_qseqid.split("_")[0])
+
+                matched_r_starts = r_starts[lo:hi]
+                matched_r_qseqids = r_qseqids[lo:hi]
+
+                r_targets = [
+                    target_map.get(rq, rq.split("_")[0]) for rq in matched_r_qseqids
+                ]
+
+                chunk = {
+                    "chrom": np.full(n_matches, chrom),
+                    "F_target": np.full(n_matches, f_target),
+                    "R_target": r_targets,
+                    "F_primer": np.full(n_matches, f_qseqid),
+                    "R_primer": matched_r_qseqids,
+                    "F_start": np.full(n_matches, f_start, dtype=int),
+                    "R_start": matched_r_starts,
+                    "product_bp": matched_r_starts - f_start + 1,
+                    "F_pident": np.full(
+                        n_matches, f_pident[i] if f_pident is not None else None
+                    ),
+                    "R_pident": r_pident[lo:hi]
+                    if r_pident is not None
+                    else np.full(n_matches, None),
+                    "F_mismatch": np.full(
+                        n_matches, f_mismatch[i] if f_mismatch is not None else None
+                    ),
+                    "R_mismatch": r_mismatch[lo:hi]
+                    if r_mismatch is not None
+                    else np.full(n_matches, None),
+                    "F_align_len": np.full(
+                        n_matches, f_length[i] if f_length is not None else None
+                    ),
+                    "R_align_len": r_length[lo:hi]
+                    if r_length is not None
+                    else np.full(n_matches, None),
+                    "F_evalue": np.full(
+                        n_matches, f_evalue[i] if f_evalue is not None else None
+                    ),
+                    "R_evalue": r_evalue[lo:hi]
+                    if r_evalue is not None
+                    else np.full(n_matches, None),
+                }
+                result_chunks.append(pd.DataFrame(chunk, columns=amplicon_columns))
 
         # Store
-        self.amplicon_df = pd.DataFrame(amplicons)
+        if result_chunks:
+            self.amplicon_df = pd.concat(result_chunks, ignore_index=True)
+        else:
+            self.amplicon_df = pd.DataFrame(columns=amplicon_columns)

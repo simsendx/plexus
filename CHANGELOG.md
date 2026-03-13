@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 05-03-2026
+## [1.1.0] - 13-03-2026
+
+### Changed
+
+- **Vectorize off-target amplicon finding** (`blast/offtarget_finder.py`): Replace O(F × R) nested `iterrows()` + `query()` loop with sorted arrays and `np.searchsorted` for O(F log R) per-chromosome lookups. Eliminates heavy per-row Pandas overhead for large multiplex panels.
+- **Vectorize BLAST annotation** (`blast/annotator.py`): Replace 4× `apply(axis=1)` Python lambdas with direct vectorized column operations for `from_3prime`, `length_pass_3prime`, `evalue_pass_3prime`, and `predicted_bound`.
 
 ### Added
 
