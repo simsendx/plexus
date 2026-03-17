@@ -146,33 +146,49 @@ class AmpliconFinder:
                     "R_target": r_targets,
                     "F_primer": np.full(n_matches, f_qseqid),
                     "R_primer": matched_r_qseqids,
-                    "F_start": np.full(n_matches, f_start, dtype=int),
-                    "R_start": matched_r_starts,
-                    "product_bp": matched_r_starts - f_start + 1,
+                    "F_start": np.full(n_matches, f_start, dtype=np.int32),
+                    "R_start": matched_r_starts.astype(np.int32),
+                    "product_bp": (matched_r_starts - f_start + 1).astype(np.int32),
                     "F_pident": np.full(
-                        n_matches, f_pident[i] if f_pident is not None else None
+                        n_matches,
+                        f_pident[i] if f_pident is not None else np.nan,
+                        dtype=np.float32,
                     ),
-                    "R_pident": r_pident[lo:hi]
-                    if r_pident is not None
-                    else np.full(n_matches, None),
+                    "R_pident": (
+                        r_pident[lo:hi].astype(np.float32)
+                        if r_pident is not None
+                        else np.full(n_matches, np.nan, dtype=np.float32)
+                    ),
                     "F_mismatch": np.full(
-                        n_matches, f_mismatch[i] if f_mismatch is not None else None
+                        n_matches,
+                        f_mismatch[i] if f_mismatch is not None else -1,
+                        dtype=np.int32,
                     ),
-                    "R_mismatch": r_mismatch[lo:hi]
-                    if r_mismatch is not None
-                    else np.full(n_matches, None),
+                    "R_mismatch": (
+                        r_mismatch[lo:hi].astype(np.int32)
+                        if r_mismatch is not None
+                        else np.full(n_matches, -1, dtype=np.int32)
+                    ),
                     "F_align_len": np.full(
-                        n_matches, f_length[i] if f_length is not None else None
+                        n_matches,
+                        f_length[i] if f_length is not None else -1,
+                        dtype=np.int32,
                     ),
-                    "R_align_len": r_length[lo:hi]
-                    if r_length is not None
-                    else np.full(n_matches, None),
+                    "R_align_len": (
+                        r_length[lo:hi].astype(np.int32)
+                        if r_length is not None
+                        else np.full(n_matches, -1, dtype=np.int32)
+                    ),
                     "F_evalue": np.full(
-                        n_matches, f_evalue[i] if f_evalue is not None else None
+                        n_matches,
+                        f_evalue[i] if f_evalue is not None else np.nan,
+                        dtype=np.float32,
                     ),
-                    "R_evalue": r_evalue[lo:hi]
-                    if r_evalue is not None
-                    else np.full(n_matches, None),
+                    "R_evalue": (
+                        r_evalue[lo:hi].astype(np.float32)
+                        if r_evalue is not None
+                        else np.full(n_matches, np.nan, dtype=np.float32)
+                    ),
                 }
                 result_chunks.append(pd.DataFrame(chunk, columns=amplicon_columns))
 
@@ -180,5 +196,7 @@ class AmpliconFinder:
         if result_chunks:
             self.amplicon_df = pd.concat(result_chunks, ignore_index=True)
             del result_chunks
+            for col in ("chrom", "F_target", "R_target", "F_primer", "R_primer"):
+                self.amplicon_df[col] = self.amplicon_df[col].astype("category")
         else:
             self.amplicon_df = pd.DataFrame(columns=amplicon_columns)
